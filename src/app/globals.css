@@ -1,26 +1,78 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Dark mode activado por clase .dark */
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  /* Tipografía */
+  --font-sans: Outfit, ui-sans-serif, system-ui, sans-serif;
+
+  /* Breakpoints */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+
+  /* Colores corporativos */
+  --color-brand-50: #ecf3ff;
+  --color-brand-100: #dde9ff;
+  --color-brand-200: #c2d6ff;
+  --color-brand-300: #9cb9ff;
+  --color-brand-400: #7592ff;
+  --color-brand-500: #465fff;
+  --color-brand-600: #3641f5;
+  --color-brand-700: #2a31d8;
+  --color-brand-800: #252dae;
+  --color-brand-900: #262e89;
+
+  /* Grises */
+  --color-gray-50: #f9fafb;
+  --color-gray-200: #e4e7ec;
+  --color-gray-700: #344054;
+  --color-gray-900: #101828;
+
+  /* Estados */
+  --color-success-500: #12b76a;
+  --color-error-500: #f04438;
+  --color-warning-500: #f79009;
+
+  /* Sombras */
+  --shadow-theme-md: 0px 4px 8px -2px rgba(16, 24, 40, 0.1),
+    0px 2px 4px -2px rgba(16, 24, 40, 0.06);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+html, body {
+  @apply bg-gray-50 dark:bg-slate-950 font-sans;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+h1, h2, h3 {
+  font-weight: 600;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ============================
+   UTILIDADES PERSONALIZADAS
+   ============================ */
+
+@utility menu-item {
+  @apply flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium;
+}
+
+@utility menu-item-active {
+  @apply bg-brand-50 text-brand-500 dark:bg-brand-500/[0.12] dark:text-brand-400;
+}
+
+@utility menu-item-inactive {
+  @apply text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5;
+}
+
+@utility no-scrollbar {
+  &::-webkit-scrollbar { display: none; }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@utility custom-scrollbar {
+  &::-webkit-scrollbar { @apply size-1.5; }
+  &::-webkit-scrollbar-thumb { @apply bg-gray-200 rounded-full dark:bg-gray-700; }
 }

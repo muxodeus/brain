@@ -7,6 +7,7 @@ const org = process.env.INFLUX_ORG!;
 const bucket = "mediciones_trends";
 
 export async function GET(req: Request): Promise<Response> {
+  // 👇 Tipamos explícitamente el callback
   return apiHandler(async (): Promise<string[]> => {
     const { searchParams } = new URL(req.url);
     const meter = searchParams.get("meter");

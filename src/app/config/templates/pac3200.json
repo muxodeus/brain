@@ -1,0 +1,15 @@
+{
+  "brand": "Siemens",
+  "model": "pac3200",
+  "templateId": "siemens_pac3200",
+  "registers": [
+    { "address": 40001, "label": "Voltage L1-N", "type": "float32" },
+    { "address": 40003, "label": "Voltage L2-N", "type": "float32" },
+    { "address": 40005, "label": "Voltage L3-N", "type": "float32" },
+    { "address": 40007, "label": "Current L1", "type": "float32" },
+    { "address": 40009, "label": "Current L2", "type": "float32" },
+    { "address": 40011, "label": "Current L3", "type": "float32" },
+    { "address": 40013, "label": "Active Power Total", "type": "float32" },
+    { "address": 40015, "label": "Reactive Power Total", "type": "float32" },
+    { "address": 40017, "label": "Apparent Power Total", "type": "float32" },
+    { "address":

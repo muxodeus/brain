@@ -1,130 +1,154 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import HighchartsWrapper from "@/components/HighchartsWrapper";
+import { useState, useEffect } from "react";
+import TendenciaCard from "@/components/TendenciaCard";
+import { paramAliases } from "@/config/paramAliases";
 
-type Series = { name: string; type: string; data: any[] };
 
-const params = [
-  { field: "voltage_A", label: "Voltaje (V)" },
-  { field: "current_A", label: "Corriente (A)" },
-  { field: "power_kW", label: "Potencia (kW)" },
-  { field: "freq_Hz", label: "Frecuencia (Hz)" },
-];
+
+// Alias de parámetros → nombres legibles en español
+const paramAliases: Record<string, { label: string; unit: string }> = {
+  voltage_mean: { label: "Voltaje RMS", unit: "V" },
+  current_mean: { label: "Corriente RMS", unit: "A" },
+  frequency_mean: { label: "Frecuencia", unit: "Hz" },
+  p_act_mean: { label: "Potencia Activa", unit: "kW" },
+  pf_mean: { label: "Factor de Potencia", unit: "" },
+  ithd_mean: { label: "THD Corriente", unit: "%" },
+  vthd_mean: { label: "THD Voltaje", unit: "%" },
+  // agrega más según tus métricas
+};
 
 export default function TendenciasPage() {
-  const [range, setRange] = useState("-24h");
-  const [meter, setMeter] = useState<string>("pqgenius");
+  const [sites, setSites] = useState<string[]>([]);
   const [meters, setMeters] = useState<string[]>([]);
-  const [seriesMap, setSeriesMap] = useState<Record<string, Series>>({});
+  const [fields, setFields] = useState<{ field: string; label: string; unit: string }[]>([]);
 
-  // Cargar lista de medidores dinámicamente
+  const [site, setSite] = useState("");
+  const [meter, setMeter] = useState("");
+  const [range, setRange] = useState("-1h");
+
+  // Defaults para las 6 gráficas
+  const defaultParams = [
+    "current_mean",     // Corriente
+    "voltage_mean",     // Voltaje
+    "vthd_mean",        // VTHD (en vez de frecuencia)
+    "p_act_mean",       // Potencia Activa
+    "pf_mean",          // Factor de Potencia
+    "ithd_mean",        // THD Corriente
+  ];
+  const [selectedParams, setSelectedParams] = useState<string[]>(defaultParams);
+
+  // Cargar sitios, medidores y fields
   useEffect(() => {
-    async function loadMeters() {
-      try {
-        const res = await fetch("/api/metrics/meta", { cache: "no-store" });
-        const json = await res.json();
-        if (json.ok && json.meters) {
-          setMeters(json.meters);
-          if (!json.meters.includes(meter)) {
-            setMeter(json.meters[0]); // seleccionar el primero si el actual no existe
-          }
-        }
-      } catch (err) {
-        console.error("❌ Error cargando medidores:", err);
-      }
+    async function fetchSites() {
+      const res = await fetch("/api/sites");
+      const data = await res.json();
+      setSites(data);
+      if (data.length > 0 && !site) setSite(data[0]);
     }
-    loadMeters();
-  }, []);
-
-  // Cargar series de cada parámetro
-  useEffect(() => {
-    async function loadAll() {
-      const newSeries: Record<string, Series> = {};
-      for (const p of params) {
-        const window =
-          range === "-1h" ? "10m" : range === "-24h" ? "1h" : "1d";
-
-        try {
-          const res = await fetch(
-            `/api/metrics?meter=${meter}&param=${p.field}&range=${range}&window=${window}`,
-            { cache: "no-store" }
-          );
-          const json = await res.json();
-          if (json.ok && json.rows) {
-            const data = json.rows.map((r: any) => [
-              new Date(r._time).getTime(),
-              Number(r._value),
-            ]);
-            newSeries[p.field] = { name: p.label, type: "line", data };
-          }
-        } catch (err) {
-          console.error(`❌ Error cargando ${p.field}:`, err);
-        }
-      }
-      setSeriesMap(newSeries);
+    async function fetchMeters() {
+      if (!site) return;
+      const res = await fetch(`/api/meters?site=${encodeURIComponent(site)}`);
+      const data = await res.json();
+      setMeters(data);
+      if (data.length > 0 && !meter) setMeter(data[0]);
     }
-    if (meter) loadAll();
-  }, [range, meter]);
+async function fetchFields() {
+  const res = await fetch("/api/fields");
+  const data = await res.json();
+  const mapped = data.map((f: string) => {
+    if (paramAliases[f]) {
+      return { field: f, label: paramAliases[f].label, unit: paramAliases[f].unit };
+    }
+    return { field: f, label: f.replace("_mean", "").toUpperCase(), unit: "" };
+  });
+  setFields(mapped);
+}
+    fetchSites();
+    fetchMeters();
+    fetchFields();
+  }, [site, meter]);
+
+  const updateParam = (index: number, newParam: string) => {
+    const updated = [...selectedParams];
+    updated[index] = newParam;
+    setSelectedParams(updated);
+  };
+
+  const quickRanges = [
+    { label: "1h", value: "-1h" },
+    { label: "24h", value: "-24h" },
+    { label: "7d", value: "-7d" },
+    { label: "30d", value: "-30d" },
+  ];
 
   return (
-    <div>
-      <h1 className="text-xl font-semibold mb-6">Tendencias</h1>
-
-      {/* Picklists */}
-      <div className="flex gap-4 mb-6">
-        <div>
-          <label className="block text-sm text-slate-500 mb-1">Rango</label>
-          <select
-            value={range}
-            onChange={(e) => setRange(e.target.value)}
-            className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-2"
-          >
-            <option value="-1h">Última hora</option>
-            <option value="-24h">Últimas 24h</option>
-            <option value="-7d">Últimos 7 días</option>
-            <option value="-30d">Últimos 30 días</option>
-          </select>
+    <div className="min-h-screen bg-slate-950 text-slate-200 p-6 space-y-6">
+      <header className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">📈 Tendencias</h2>
+        <div className="text-xs text-slate-400">
+          Última actualización: {new Date().toLocaleString("es-SV", { hour12: false })}
         </div>
+      </header>
+
+      {/* Controles superiores */}
+      <div className="flex flex-wrap gap-4 items-center bg-slate-900 p-4 rounded-lg shadow">
         <div>
-          <label className="block text-sm text-slate-500 mb-1">Medidor</label>
+          <label className="block text-xs text-slate-400 mb-1">Sitio</label>
           <select
-            value={meter}
-            onChange={(e) => setMeter(e.target.value)}
-            className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-2"
+            value={site}
+            onChange={(e) => setSite(e.target.value)}
+            className="bg-slate-800 text-slate-200 rounded px-2 py-1 text-sm min-w-48"
           >
-            {meters.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
+            {sites.map((s) => (
+              <option key={s} value={s}>{s}</option>
             ))}
           </select>
         </div>
+
+        <div>
+          <label className="block text-xs text-slate-400 mb-1">Medidor</label>
+          <select
+            value={meter}
+            onChange={(e) => setMeter(e.target.value)}
+            className="bg-slate-800 text-slate-200 rounded px-2 py-1 text-sm min-w-48"
+          >
+            {meters.map((m) => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-400">Rango</span>
+          <div className="flex gap-2">
+            {quickRanges.map((r) => (
+              <button
+                key={r.value}
+                onClick={() => setRange(r.value)}
+                className={`px-3 py-1 rounded text-sm ${
+                  range === r.value ? "bg-slate-700 text-white" : "bg-slate-800 text-slate-300"
+                }`}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* Gráficas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {params.map((p) => (
-          <div
-            key={p.field}
-            className="rounded-lg bg-white dark:bg-slate-900 p-5 shadow"
-          >
-            <h3 className="text-sm font-semibold mb-2">{p.label}</h3>
-            {seriesMap[p.field] ? (
-              <HighchartsWrapper
-                options={{
-                  chart: { type: "line", backgroundColor: "transparent" },
-                  title: { text: undefined },
-                  xAxis: { type: "datetime" },
-                  yAxis: { title: { text: p.label } },
-                  series: [seriesMap[p.field]],
-                }}
-                height={300}
-              />
-            ) : (
-              <p className="text-sm text-slate-500">Cargando datos...</p>
-            )}
-          </div>
+      {/* Grid de 6 gráficas */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {selectedParams.map((param, i) => (
+          <TendenciaCard
+            key={i}
+            site={site}
+            meter={meter}
+            param={param}
+            range={range}
+            allParams={fields}
+            onParamChange={(newParam) => updateParam(i, newParam)}
+          />
         ))}
       </div>
     </div>

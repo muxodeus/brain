@@ -1,76 +1,127 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import ChartCard from "./ChartCard";
-import HighchartsWrapper from "./HighchartsWrapper";
+import Highcharts from "highcharts";
+import HighchartsReact from "highcharts-react-official";
+import StatsCards from "./StatsCards";
 
-type Point = [number, number];
+import "highcharts/modules/exporting";
+import "highcharts/modules/export-data";
+import "highcharts/modules/full-screen";
 
-export default function CompareChart({
-  param,
-  label,
-  meterA,
-  meterB,
-  range,
-}: {
-  param: string;
-  label: string;
+type Props = {
   meterA: string;
   meterB: string;
+  param: string;
   range: string;
-}) {
-  const [dataA, setDataA] = useState<Point[]>([]);
-  const [dataB, setDataB] = useState<Point[]>([]);
+};
+
+export default function CompareChart({ meterA, meterB, param, range }: Props) {
+  const [series, setSeries] = useState<any[]>([]);
+  const [statsA, setStatsA] = useState<any>(null);
+  const [statsB, setStatsB] = useState<any>(null);
 
   useEffect(() => {
-    async function fetchSeries(meter: string) {
-      const res = await fetch(`/api/metrics?meter=${meter}&param=${param}&range=${range}`);
-      const json = await res.json();
-      if (json.ok) {
-        return json.rows
-          .filter((r: any) => r._value !== null)
-          .map((r: any) => [new Date(r._time).getTime(), Number(r._value)]);
+    async function loadData() {
+      const window =
+        range === "-1h" ? "10m" : range === "-24h" ? "1h" : "1d";
+
+      // Serie A
+      const resA = await fetch(
+        `/api/metrics?meter=${meterA}&param=${param}&range=${range}&window=${window}`,
+        { cache: "no-store" }
+      );
+      const jsonA = await resA.json();
+      if (jsonA.ok && jsonA.rows) {
+        const data = jsonA.rows.map((r: any) => [
+          new Date(r._time).getTime(),
+          Number(r._value),
+        ]);
+        setSeries((prev) => [
+          { name: meterA, data, color: "#3b82f6" }, // azul
+          ...(prev.filter((s) => s.name !== meterA)),
+        ]);
       }
-      return [];
+
+      // Serie B
+      const resB = await fetch(
+        `/api/metrics?meter=${meterB}&param=${param}&range=${range}&window=${window}`,
+        { cache: "no-store" }
+      );
+      const jsonB = await resB.json();
+      if (jsonB.ok && jsonB.rows) {
+        const data = jsonB.rows.map((r: any) => [
+          new Date(r._time).getTime(),
+          Number(r._value),
+        ]);
+        setSeries((prev) => [
+          ...(prev.filter((s) => s.name !== meterB)),
+          { name: meterB, data, color: "#f97316" }, // naranja
+        ]);
+      }
+
+      // Stats A
+      const resStatsA = await fetch(
+        `/api/metrics/stats?meter=${meterA}&param=${param}&range=${range}`,
+        { cache: "no-store" }
+      );
+      const jsonStatsA = await resStatsA.json();
+      if (jsonStatsA.ok) setStatsA(jsonStatsA.stats);
+
+      // Stats B
+      const resStatsB = await fetch(
+        `/api/metrics/stats?meter=${meterB}&param=${param}&range=${range}`,
+        { cache: "no-store" }
+      );
+      const jsonStatsB = await resStatsB.json();
+      if (jsonStatsB.ok) setStatsB(jsonStatsB.stats);
     }
 
-    async function load() {
-      const [a, b] = await Promise.all([fetchSeries(meterA), fetchSeries(meterB)]);
-      setDataA(a);
-      setDataB(b);
-    }
+    loadData();
+  }, [meterA, meterB, param, range]);
 
-    load();
-  }, [param, meterA, meterB, range]);
+  const options: Highcharts.Options = {
+    chart: { type: "line", backgroundColor: "transparent", zoomType: "x" },
+    title: { text: undefined },
+    xAxis: { type: "datetime" },
+    yAxis: { title: { text: param } },
+    tooltip: { shared: true },
+    series,
+    exporting: { enabled: true },
+  };
 
   return (
-    <ChartCard title={`${label} — ${meterA} vs ${meterB}`}>
-      <HighchartsWrapper
-        options={{
-          chart: { type: "line", backgroundColor: "#0B0F1A" },
-          title: { text: undefined },
-          xAxis: { type: "datetime" },
-          yAxis: { title: { text: label } },
-          series: [
-            {
-              type: "line",
-              name: meterA,
-              data: dataA,
-              color: "#38BDF8",
-            },
-            {
-              type: "line",
-              name: meterB,
-              data: dataB,
-              color: "#22C55E",
-            },
-          ],
-          tooltip: { shared: true },
-          legend: { itemStyle: { color: "#E2E8F0" } },
-          credits: { enabled: false },
-        }}
-        height={300}
-      />
-    </ChartCard>
+    <div className="rounded-lg bg-white dark:bg-slate-900 p-5 shadow">
+      <h3 className="text-sm font-semibold mb-2">
+        Comparación de {param} entre {meterA} y {meterB}
+      </h3>
+
+      {/* Gráfica */}
+      {series.length > 0 ? (
+        <HighchartsReact highcharts={Highcharts} options={options} />
+      ) : (
+        <p className="text-sm text-slate-500">Cargando datos...</p>
+      )}
+
+      {/* Stats Medidor A */}
+      {statsA && (
+        <div className="mt-4">
+          <h4 className="text-xs font-semibold text-slate-500 mb-1">
+            {meterA}
+          </h4>
+          <StatsCards stats={statsA} />
+        </div>
+      )}
+
+      {/* Stats Medidor B */}
+      {statsB && (
+        <div className="mt-4">
+          <h4 className="text-xs font-semibold text-slate-500 mb-1">
+            {meterB}
+          </h4>
+          <StatsCards stats={statsB} />
+        </div>
+      )}
+    </div>
   );
 }

@@ -2,159 +2,133 @@
 
 import { useEffect, useState } from "react";
 import Highcharts from "highcharts";
-import HighchartsReact from "highcharts-react-official";
+import dynamic from "next/dynamic";
+import { cleanChannelName } from "@/config/channelAliases";
+import { paramAliases } from "@/config/paramAliases";
 
-// Módulos extra de Highcharts
-import Exporting from "highcharts/modules/exporting";
-import ExportData from "highcharts/modules/export-data";
-import FullScreen from "highcharts/modules/full-screen";
+const HighchartsReact = dynamic(() => import("highcharts-react-official"), { ssr: false });
 
-if (typeof Highcharts === "object") {
-  Exporting(Highcharts);
-  ExportData(Highcharts);
-  FullScreen(Highcharts);
+// Inicializar módulos SOLO en cliente
+if (typeof window !== "undefined") {
+  const Exporting = require("highcharts/modules/exporting");
+  const ExportData = require("highcharts/modules/export-data");
+  const FullScreen = require("highcharts/modules/full-screen");
+
+  if (Exporting.default) Exporting.default(Highcharts);
+  if (ExportData.default) ExportData.default(Highcharts);
+  if (FullScreen.default) FullScreen.default(Highcharts);
 }
 
+type ParamMeta = { field: string; label: string; unit: string };
+
 type Props = {
+  site: string;
   meter: string;
+  param: string;
   range: string;
+  allParams: ParamMeta[];
+  onParamChange: (newParam: string) => void;
 };
 
-const paramOptions = [
-  { field: "voltage_A", label: "Voltaje (V)" },
-  { field: "current_A", label: "Corriente (A)" },
-  { field: "power_kW", label: "Potencia (kW)" },
-  { field: "freq_Hz", label: "Frecuencia (Hz)" },
-];
+const CHANNELS = ["A", "B", "C", "Total"];
 
-export default function TendenciaCard({ meter, range }: Props) {
-  const [param, setParam] = useState("power_kW");
-  const [series, setSeries] = useState<any[]>([]);
-  const [stats, setStats] = useState<any>(null);
+export default function TendenciaCard({
+  site,
+  meter,
+  param,
+  range,
+  allParams,
+  onParamChange,
+}: Props) {
+  const [channel, setChannel] = useState<string>("A");
+  const [series, setSeries] = useState<{ time: string; value: number }[]>([]);
+  const [stats, setStats] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    async function loadData() {
-      const window =
-        range === "-1h" ? "10m" : range === "-24h" ? "1h" : "1d";
-
-      const res = await fetch(
-        `/api/metrics?meter=${meter}&param=${param}&range=${range}&window=${window}`,
-        { cache: "no-store" }
-      );
-      const json = await res.json();
-      if (json.ok && json.rows) {
-        const data = json.rows.map((r: any) => [
-          new Date(r._time).getTime(),
-          Number(r._value),
-        ]);
-        setSeries([{ name: paramOptions.find(p => p.field === param)?.label, data }]);
-
-        // Calcular stats básicos
-        const values = data.map((d: any) => d[1]);
-        if (values.length > 0) {
-          const sorted = [...values].sort((a, b) => a - b);
-          const p = (q: number) =>
-            sorted[Math.floor((q / 100) * sorted.length)];
-          setStats({
-            min: Math.min(...values).toFixed(2),
-            max: Math.max(...values).toFixed(2),
-            avg: (values.reduce((a, b) => a + b, 0) / values.length).toFixed(2),
-            p50: p(50).toFixed(2),
-            p90: p(90).toFixed(2),
-          });
-        }
-      }
+    async function fetchData() {
+      const qs = new URLSearchParams({ param, range, meter, site, channel }).toString();
+      const res = await fetch(`/api/trends?${qs}`);
+      const data = await res.json();
+      setSeries(Array.isArray(data.series) ? data.series : []);
+      setStats(data.stats || {});
     }
-    loadData();
-  }, [param, meter, range]);
+    fetchData();
+  }, [site, meter, param, range, channel]);
+
+  const meta = allParams.find((p) => p.field === param) || paramAliases[param] || { label: param, unit: "" };
 
   const options: Highcharts.Options = {
-    chart: {
-      type: "line",
-      backgroundColor: "transparent",
-      zoomType: "x", // zoom horizontal
-    },
-    title: { text: undefined },
-    xAxis: { type: "datetime" },
-    yAxis: { title: { text: paramOptions.find(p => p.field === param)?.label } },
-    tooltip: {
-      shared: true,
-      formatter: function () {
-        const point = this.points?.[0];
-        if (!point) return "";
-        const value = point.y;
-        const prev = point.series.data[point.point.index - 1]?.y;
-        const diff = prev ? (value - prev).toFixed(2) : "N/A";
-        const avg = (
-          point.series.data.reduce((a, p) => a + p.y, 0) /
-          point.series.data.length
-        ).toFixed(2);
-
-        return `
-          <b>${point.series.name}</b><br/>
-          Valor: ${value}<br/>
-          Δ respecto anterior: ${diff}<br/>
-          Promedio serie: ${avg}
-        `;
+    chart: { zoomType: "x", backgroundColor: "#0f172a" },
+    title: { text: `${meta.label} (${cleanChannelName(channel)})`, style: { color: "#e2e8f0" } },
+    xAxis: { type: "datetime", labels: { style: { color: "#94a3b8" } } },
+    yAxis: { title: { text: meta.unit || "" }, labels: { style: { color: "#94a3b8" } } },
+    tooltip: { shared: true, valueDecimals: 2, valueSuffix: ` ${meta.unit || ""}` },
+    legend: { enabled: false },
+    series: [
+      {
+        type: "line",
+        name: meta.label,
+        data: series.map((d) => [new Date(d.time).getTime(), d.value]),
+        color: "#38bdf8",
       },
-    },
-    series,
-    exporting: {
-      enabled: true,
-      buttons: {
-        contextButton: {
-          menuItems: [
-            "viewFullscreen",
-            "downloadPNG",
-            "downloadJPEG",
-            "downloadPDF",
-            "downloadSVG",
-            "downloadCSV",
-            "downloadXLS",
-            "viewData",
-          ],
-        },
-      },
-    },
+    ],
+    exporting: { enabled: true },
   };
 
   return (
-    <div className="rounded-lg bg-white dark:bg-slate-900 p-5 shadow">
-      {/* Header con selector */}
-      <div className="mb-2 flex justify-between items-center">
-        <h3 className="text-sm font-semibold">
-          {paramOptions.find(p => p.field === param)?.label}
+    <div className="bg-slate-900 p-4 rounded-lg shadow text-slate-200">
+      {/* Header con selects */}
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="font-semibold">
+          {meta.label} ({cleanChannelName(channel)})
         </h3>
-        <select
-          value={param}
-          onChange={(e) => setParam(e.target.value)}
-          className="bg-slate-800 text-slate-200 rounded px-2 py-1 text-xs"
-        >
-          {paramOptions.map((p) => (
-            <option key={p.field} value={p.field}>
-              {p.label}
-            </option>
-          ))}
-        </select>
+        <div className="flex gap-2">
+          <select
+            value={param}
+            onChange={(e) => onParamChange(e.target.value)}
+            className="bg-slate-800 text-slate-200 rounded px-2 py-1 text-sm"
+          >
+            {allParams.map((p) => (
+              <option key={p.field} value={p.field}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={channel}
+            onChange={(e) => setChannel(e.target.value)}
+            className="bg-slate-800 text-slate-200 rounded px-2 py-1 text-sm"
+          >
+            {CHANNELS.map((c) => (
+              <option key={c} value={c}>
+                {cleanChannelName(c)}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {/* Gráfica */}
-      {series.length > 0 ? (
-        <HighchartsReact highcharts={Highcharts} options={options} />
-      ) : (
-        <p className="text-sm text-slate-500">Cargando datos...</p>
-      )}
+      {/* Gráfico */}
+      <HighchartsReact highcharts={Highcharts} options={options} />
 
-      {/* Estadísticas */}
-      {stats && (
-        <div className="mt-3 text-xs text-slate-400 grid grid-cols-2 gap-2">
-          <p>Promedio: {stats.avg}</p>
-          <p>Máximo: {stats.max}</p>
-          <p>Mínimo: {stats.min}</p>
-          <p>P50: {stats.p50}</p>
-          <p>P90: {stats.p90}</p>
+      {/* Mini‑cards */}
+      <div className="grid grid-cols-5 gap-2 text-xs mt-3">
+        <div className="bg-slate-800 p-2 rounded border-t-4 border-emerald-500">
+          Min: {stats.min ?? "—"} {meta.unit}
         </div>
-      )}
+        <div className="bg-slate-800 p-2 rounded border-t-4 border-blue-500">
+          P5: {stats.p5 ?? "—"} {meta.unit}
+        </div>
+        <div className="bg-slate-800 p-2 rounded border-t-4 border-sky-500">
+          Prom: {stats.mean ?? "—"} {meta.unit}
+        </div>
+        <div className="bg-slate-800 p-2 rounded border-t-4 border-orange-500">
+          P95: {stats.p95 ?? "—"} {meta.unit}
+        </div>
+        <div className="bg-slate-800 p-2 rounded border-t-4 border-rose-500">
+          Max: {stats.max ?? "—"} {meta.unit}
+        </div>
+      </div>
     </div>
   );
 }

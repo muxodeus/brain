@@ -1,26 +1,24 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState } from "react";
 
 type MeterContextType = {
-  meter: string;
-  setMeter: (m: string) => void;
+  selectedMeter: string;
+  setSelectedMeter: (m: string) => void;
 };
 
-const MeterContext = createContext<MeterContextType | undefined>(undefined);
+const MeterContext = createContext<MeterContextType>({
+  selectedMeter: "pqgenius",
+  setSelectedMeter: () => {}
+});
 
-export function MeterProvider({ children }: { children: ReactNode }) {
-  const [meter, setMeter] = useState("pqgenius"); // valor inicial
-
+export const MeterProvider = ({ children }: { children: React.ReactNode }) => {
+  const [selectedMeter, setSelectedMeter] = useState("pqgenius");
   return (
-    <MeterContext.Provider value={{ meter, setMeter }}>
+    <MeterContext.Provider value={{ selectedMeter, setSelectedMeter }}>
       {children}
     </MeterContext.Provider>
   );
-}
+};
 
-export function useMeter() {
-  const ctx = useContext(MeterContext);
-  if (!ctx) throw new Error("useMeter debe usarse dentro de MeterProvider");
-  return ctx;
-}
+export const useMeter = () => useContext(MeterContext);

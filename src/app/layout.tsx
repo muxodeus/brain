@@ -1,24 +1,20 @@
 import "./globals.css";
+import { ConfigProvider } from "@/context/ConfigContext";
+import { MeterProvider } from "@/context/MeterContext";
 import Sidebar from "@/components/Sidebar";
-import Header from "@/components/Header";
 
 export const metadata = {
   title: "PQGenius",
-  description: "Platforma de Análisis Energético",
+  description: "Industrial analytics"
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className="dark">
-      <body className="font-sans bg-gray-50 dark:bg-slate-950 text-gray-900 dark:text-gray-100">
+    <html lang="es">
+      <body className="bg-slate-950 text-white">
         <div className="flex h-screen">
           <Sidebar />
-          <div className="flex flex-col flex-1">
-            <Header />
-            <main className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-              {children}
-            </main>
-          </div>
+          <main className="flex-1 overflow-y-auto">{children}</main>
         </div>
       </body>
     </html>

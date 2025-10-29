@@ -37,6 +37,6 @@ export async function GET(req: Request): Promise<Response> {
       });
     });
 
-    return channels;
+    return channels; // 👈 apiHandler lo envuelve en NextResponse.json()
   });
 }

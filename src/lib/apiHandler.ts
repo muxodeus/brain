@@ -1,10 +1,6 @@
 // lib/apiHandler.ts
 import { NextResponse } from "next/server";
 
-/**
- * Envuelve un handler asíncrono y garantiza que siempre devuelva un Response.
- * @param fn Función que devuelve datos (objeto, array, string, etc.)
- */
 export async function apiHandler<T>(fn: () => Promise<T>): Promise<Response> {
   try {
     const data = await fn();

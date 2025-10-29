@@ -7,7 +7,7 @@ const org = process.env.INFLUX_ORG!;
 const bucket = "mediciones_trends";
 
 export async function GET(req: Request): Promise<Response> {
-  return apiHandler(async () => {
+  return apiHandler(async (): Promise<string[]> => {
     const { searchParams } = new URL(req.url);
     const meter = searchParams.get("meter");
 
@@ -37,6 +37,6 @@ export async function GET(req: Request): Promise<Response> {
       });
     });
 
-    return channels; // 👈 apiHandler lo envuelve en NextResponse.json()
+    return channels; // 👈 apiHandler lo envuelve en Response
   });
 }

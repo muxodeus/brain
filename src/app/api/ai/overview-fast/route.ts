@@ -39,7 +39,7 @@ export async function GET(): Promise<Response> {
       |> mean()
     `);
 
-    // Consultas de series: TIPADAS explícitamente con _time obligatorio
+    // Consultas de series (devuelven _time y _value)
     const actualRowsPromise = runFlux<{ _time: string; _value: string }>(`
       from(bucket: "${bucket}") |> range(start: -7d)
       |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "power_kW")
@@ -121,12 +121,16 @@ export async function GET(): Promise<Response> {
     // Series para Highcharts [timestamp(ms), value]
     const actualSeries =
       actualRows?.length
-        ? actualRows.map((r) => [new Date(r._time).getTime(), Number(r._value)])
+        ? actualRows
+            .filter((r) => r._time) // ✅ filtramos para evitar undefined
+            .map((r) => [new Date(r._time!).getTime(), Number(r._value)])
         : [];
 
     const anteriorSeries =
       anteriorSerieRows?.length
-        ? anteriorSerieRows.map((r) => [new Date(r._time).getTime(), Number(r._value)])
+        ? anteriorSerieRows
+            .filter((r) => r._time) // ✅ filtramos para evitar undefined
+            .map((r) => [new Date(r._time!).getTime(), Number(r._value)])
         : [];
 
     const trendOptions = {

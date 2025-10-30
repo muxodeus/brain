@@ -1,47 +1,42 @@
-import { NextResponse } from "next/server";
 import { InfluxDB } from "@influxdata/influxdb-client";
+import { apiHandler } from "@/lib/apiHandler";
 
-// Variables de entorno (defínelas en tu .env.local)
 const url = process.env.INFLUX_URL!;
 const token = process.env.INFLUX_TOKEN!;
 const org = process.env.INFLUX_ORG!;
-const bucket = "mediciones_raw";
+const bucket = "mediciones_trends";
 
-export async function GET() {
-  const queryApi = new InfluxDB({ url, token }).getQueryApi(org);
+export async function GET(req: Request): Promise<Response> {
+  return apiHandler(async (): Promise<{ kpi: string; value: number }[]> => {
+    const { searchParams } = new URL(req.url);
+    const site = searchParams.get("site");
 
-  // Consulta: últimos valores de cada campo en el último punto
-  const fluxQuery = `
-    from(bucket: "${bucket}")
-      |> range(start: -30s)
-      |> filter(fn: (r) => r._measurement == "meters")
-      |> last()
-  `;
+    const queryApi = new InfluxDB({ url, token }).getQueryApi(org);
 
-  const rows: any[] = [];
+    let flux = `
+      from(bucket: "${bucket}")
+        |> range(start: -1h)
+        |> filter(fn: (r) => r._measurement == "kpis")
+    `;
+    if (site) {
+      flux += `|> filter(fn: (r) => r.site == "${site}")`;
+    }
 
-  return new Promise((resolve, reject) => {
-    queryApi.queryRows(fluxQuery, {
-      next: (row, tableMeta) => {
-        const o = tableMeta.toObject(row);
-        rows.push(o);
-      },
-      error: (error) => {
-        console.error("❌ Error Influx:", error);
-        reject(NextResponse.json({ error: error.message }, { status: 500 }));
-      },
-      complete: () => {
-        // Agrupamos por canal
-        const grouped: Record<string, Record<string, number>> = {};
+    const kpis: { kpi: string; value: number }[] = [];
 
-        for (const r of rows) {
-          const ch = r.channel || "Total";
-          if (!grouped[ch]) grouped[ch] = {};
-          grouped[ch][r._field] = r._value;
-        }
-
-        resolve(NextResponse.json(grouped));
-      },
+    await new Promise<void>((resolve, reject) => {
+      queryApi.queryRows(flux, {
+        next: (row, meta) => {
+          const o = meta.toObject(row);
+          if (o._field && o._value !== undefined) {
+            kpis.push({ kpi: o._field, value: Number(o._value) });
+          }
+        },
+        error: (err) => reject(err),
+        complete: () => resolve(),
+      });
     });
+
+    return kpis; // 👈 apiHandler lo envuelve en NextResponse.json()
   });
 }

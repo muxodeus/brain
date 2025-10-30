@@ -7,53 +7,61 @@ export async function GET(): Promise<Response> {
   try {
     const bucket = process.env.INFLUX_BUCKET || "pqgenius";
 
-    // Ejecutamos todas las consultas en paralelo usando el helper genérico runFlux
-    const queries: Promise<RowValue[]>[] = [
-      runFlux<RowValue>(`
-        from(bucket: "${bucket}") |> range(start: -7d)
-        |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "energy_kWh")
-        |> first()
-      `),
-      runFlux<RowValue>(`
-        from(bucket: "${bucket}") |> range(start: -7d)
-        |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "energy_kWh")
-        |> last()
-      `),
-      runFlux<RowValue>(`
-        from(bucket: "${bucket}") |> range(start: -14d, stop: -7d)
-        |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "energy_kWh")
-        |> first()
-      `),
-      runFlux<RowValue>(`
-        from(bucket: "${bucket}") |> range(start: -14d, stop: -7d)
-        |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "energy_kWh")
-        |> last()
-      `),
-      runFlux<RowValue>(`
-        from(bucket: "${bucket}") |> range(start: -7d)
-        |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "power_kW")
-        |> max()
-      `),
-      runFlux<RowValue>(`
-        from(bucket: "${bucket}") |> range(start: -7d)
-        |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "power_kW")
-        |> mean()
-      `),
-      // Series actuales (devuelven _time y _value; _time es opcional en el tipo RowValue)
-      runFlux<RowValue>(`
-        from(bucket: "${bucket}") |> range(start: -7d)
-        |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "power_kW")
-        |> aggregateWindow(every: 30m, fn: mean, createEmpty: false)
-      `),
-      // Series semana anterior
-      runFlux<RowValue>(`
-        from(bucket: "${bucket}") |> range(start: -14d, stop: -7d)
-        |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "power_kW")
-        |> aggregateWindow(every: 30m, fn: mean, createEmpty: false)
-      `),
-    ];
+    // Consultas que devuelven solo _value
+    const firstRowPromise = runFlux<RowValue>(`
+      from(bucket: "${bucket}") |> range(start: -7d)
+      |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "energy_kWh")
+      |> first()
+    `);
+    const lastRowPromise = runFlux<RowValue>(`
+      from(bucket: "${bucket}") |> range(start: -7d)
+      |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "energy_kWh")
+      |> last()
+    `);
+    const anteriorFirstPromise = runFlux<RowValue>(`
+      from(bucket: "${bucket}") |> range(start: -14d, stop: -7d)
+      |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "energy_kWh")
+      |> first()
+    `);
+    const anteriorLastPromise = runFlux<RowValue>(`
+      from(bucket: "${bucket}") |> range(start: -14d, stop: -7d)
+      |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "energy_kWh")
+      |> last()
+    `);
+    const maxRowsPromise = runFlux<RowValue>(`
+      from(bucket: "${bucket}") |> range(start: -7d)
+      |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "power_kW")
+      |> max()
+    `);
+    const meanRowsPromise = runFlux<RowValue>(`
+      from(bucket: "${bucket}") |> range(start: -7d)
+      |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "power_kW")
+      |> mean()
+    `);
 
-    const results = await Promise.allSettled(queries);
+    // Consultas de series: TIPADAS explícitamente con _time obligatorio
+    const actualRowsPromise = runFlux<{ _time: string; _value: string }>(`
+      from(bucket: "${bucket}") |> range(start: -7d)
+      |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "power_kW")
+      |> aggregateWindow(every: 30m, fn: mean, createEmpty: false)
+    `);
+    const anteriorSerieRowsPromise = runFlux<{ _time: string; _value: string }>(`
+      from(bucket: "${bucket}") |> range(start: -14d, stop: -7d)
+      |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "power_kW")
+      |> aggregateWindow(every: 30m, fn: mean, createEmpty: false)
+    `);
+
+    const results = await Promise.allSettled([
+      firstRowPromise,
+      lastRowPromise,
+      anteriorFirstPromise,
+      anteriorLastPromise,
+      maxRowsPromise,
+      meanRowsPromise,
+      actualRowsPromise,
+      anteriorSerieRowsPromise,
+    ]);
+
     const get = <T>(r: PromiseSettledResult<T>): T | null =>
       r.status === "fulfilled" ? r.value : null;
 
@@ -113,16 +121,12 @@ export async function GET(): Promise<Response> {
     // Series para Highcharts [timestamp(ms), value]
     const actualSeries =
       actualRows?.length
-        ? actualRows
-            .filter((r) => r._time)
-            .map((r) => [new Date(r._time!).getTime(), Number(r._value)])
+        ? actualRows.map((r) => [new Date(r._time).getTime(), Number(r._value)])
         : [];
 
     const anteriorSeries =
       anteriorSerieRows?.length
-        ? anteriorSerieRows
-            .filter((r) => r._time)
-            .map((r) => [new Date(r._time!).getTime(), Number(r._value)])
+        ? anteriorSerieRows.map((r) => [new Date(r._time).getTime(), Number(r._value)])
         : [];
 
     const trendOptions = {

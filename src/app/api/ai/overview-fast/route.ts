@@ -1,51 +1,35 @@
 import { NextResponse } from "next/server";
 import { runFlux } from "@/lib/influx";
 
-export async function GET() {
+export async function GET(): Promise<Response> {
   try {
     const bucket = process.env.INFLUX_BUCKET || "pqgenius";
 
     const queries = [
-      runFlux<{ _value: string }>(`
-        from(bucket: "${bucket}") |> range(start: -7d)
+      runFlux(`from(bucket: "${bucket}") |> range(start: -7d)
         |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "energy_kWh")
-        |> first()
-      `),
-      runFlux<{ _value: string }>(`
-        from(bucket: "${bucket}") |> range(start: -7d)
+        |> first()`),
+      runFlux(`from(bucket: "${bucket}") |> range(start: -7d)
         |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "energy_kWh")
-        |> last()
-      `),
-      runFlux<{ _value: string }>(`
-        from(bucket: "${bucket}") |> range(start: -14d, stop: -7d)
+        |> last()`),
+      runFlux(`from(bucket: "${bucket}") |> range(start: -14d, stop: -7d)
         |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "energy_kWh")
-        |> first()
-      `),
-      runFlux<{ _value: string }>(`
-        from(bucket: "${bucket}") |> range(start: -14d, stop: -7d)
+        |> first()`),
+      runFlux(`from(bucket: "${bucket}") |> range(start: -14d, stop: -7d)
         |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "energy_kWh")
-        |> last()
-      `),
-      runFlux<{ _value: string }>(`
-        from(bucket: "${bucket}") |> range(start: -7d)
+        |> last()`),
+      runFlux(`from(bucket: "${bucket}") |> range(start: -7d)
         |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "power_kW")
-        |> max()
-      `),
-      runFlux<{ _value: string }>(`
-        from(bucket: "${bucket}") |> range(start: -7d)
+        |> max()`),
+      runFlux(`from(bucket: "${bucket}") |> range(start: -7d)
         |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "power_kW")
-        |> mean()
-      `),
-      runFlux<{ _time: string; _value: string }>(`
-        from(bucket: "${bucket}") |> range(start: -7d)
+        |> mean()`),
+      runFlux(`from(bucket: "${bucket}") |> range(start: -7d)
         |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "power_kW")
-        |> aggregateWindow(every: 30m, fn: mean, createEmpty: false)
-      `),
-      runFlux<{ _time: string; _value: string }>(`
-        from(bucket: "${bucket}") |> range(start: -14d, stop: -7d)
+        |> aggregateWindow(every: 30m, fn: mean, createEmpty: false)`),
+      runFlux(`from(bucket: "${bucket}") |> range(start: -14d, stop: -7d)
         |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "power_kW")
-        |> aggregateWindow(every: 30m, fn: mean, createEmpty: false)
-      `),
+        |> aggregateWindow(every: 30m, fn: mean, createEmpty: false)`),
     ];
 
     const results = await Promise.allSettled(queries);
@@ -66,63 +50,96 @@ export async function GET() {
     // Consumos
     const consumo =
       lastRow && firstRow
-        ? Number(lastRow[0]?._value || 0) - Number(firstRow[0]?._value || 0)
+        ? Number((lastRow[0] as any)?._value || 0) -
+          Number((firstRow[0] as any)?._value || 0)
         : 0;
 
     const consumoAnterior =
       anteriorLast && anteriorFirst
-        ? Number(anteriorLast[0]?._value || 0) - Number(anteriorFirst[0]?._value || 0)
+        ? Number((anteriorLast[0] as any)?._value || 0) -
+          Number((anteriorFirst[0] as any)?._value || 0)
         : 0;
 
     // Variación con protecciones
     let variacion: string;
     if (!consumoAnterior || consumoAnterior < 100) {
-      variacion = "N/A"; // base demasiado pequeña
+      variacion = "N/A";
     } else {
       const v = ((consumo - consumoAnterior) / consumoAnterior) * 100;
-      if (Math.abs(v) > 200) {
-        variacion = "N/A"; // descartamos outliers
-      } else {
-        variacion = `${v.toFixed(1)}%`;
-      }
+      variacion = Math.abs(v) > 200 ? "N/A" : `${v.toFixed(1)}%`;
     }
 
     // Otros KPIs
-    const max = maxRows ? Number(maxRows[0]?._value || 0) : 0;
-    const mean = meanRows ? Number(meanRows[0]?._value || 0) : 0;
+    const max = maxRows ? Number((maxRows[0] as any)?._value || 0) : 0;
+    const mean = meanRows ? Number((meanRows[0] as any)?._value || 0) : 0;
     const factorCarga = max ? (mean / max) * 100 : 0;
 
     const kpis = [
-      { label: "Consumo total (7d)", value: consumo ? `${(consumo / 1e3).toFixed(1)} kWh` : "N/A" },
+      {
+        label: "Consumo total (7d)",
+        value: consumo ? `${(consumo / 1e3).toFixed(1)} kWh` : "N/A",
+      },
       { label: "Variación vs semana anterior", value: variacion },
-      { label: "Pico máximo de demanda", value: max ? `${max.toFixed(1)} kW` : "N/A" },
-      { label: "Factor de carga", value: max ? `${factorCarga.toFixed(1)}%` : "N/A" },
+      {
+        label: "Pico máximo de demanda",
+        value: max ? `${max.toFixed(1)} kW` : "N/A",
+      },
+      {
+        label: "Factor de carga",
+        value: max ? `${factorCarga.toFixed(1)}%` : "N/A",
+      },
     ];
 
     // Series
     const actualSeries = actualRows
-      ? actualRows.map((r) => [new Date(r._time).getTime(), Number(r._value)])
+      ? (actualRows as any[]).map((r) => [
+          new Date(r._time!).getTime(),
+          Number(r._value),
+        ])
       : [];
 
     const anteriorSeries = anteriorSerieRows
-      ? anteriorSerieRows.map((r) => [new Date(r._time).getTime(), Number(r._value)])
+      ? (anteriorSerieRows as any[]).map((r) => [
+          new Date(r._time!).getTime(),
+          Number(r._value),
+        ])
       : [];
 
     const trendOptions = {
       chart: { type: "line", backgroundColor: "#000000", zoomType: "x" },
-      title: { text: "Potencia activa — Últimos 7 días", style: { color: "#ffffff" } },
+      title: {
+        text: "Potencia activa — Últimos 7 días",
+        style: { color: "#ffffff" },
+      },
       xAxis: { type: "datetime", labels: { style: { color: "#ffffff" } } },
-      yAxis: { title: { text: "kW", style: { color: "#ffffff" } }, labels: { style: { color: "#ffffff" } } },
+      yAxis: {
+        title: { text: "kW", style: { color: "#ffffff" } },
+        labels: { style: { color: "#ffffff" } },
+      },
       legend: { itemStyle: { color: "#ffffff" } },
       series: [
-        { type: "line", name: "Actual", data: actualSeries, color: "#00ffcc" },
-        { type: "line", name: "Anterior", data: anteriorSeries, dashStyle: "ShortDash", color: "#ffcc00" },
+        {
+          type: "line",
+          name: "Actual",
+          data: actualSeries,
+          color: "#00ffcc",
+        },
+        {
+          type: "line",
+          name: "Anterior",
+          data: anteriorSeries,
+          dashStyle: "ShortDash",
+          color: "#ffcc00",
+        },
       ],
     };
 
     return NextResponse.json({ kpis, trendOptions });
   } catch (err: any) {
     console.error("overview-fast error:", err);
-    return NextResponse.json({ error: err.message || "Error en overview-fast" }, { status: 500 });
+    return NextResponse.json(
+      { error: err.message || "Error en overview-fast" },
+      { status: 500 }
+    );
   }
 }

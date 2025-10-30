@@ -9,15 +9,17 @@ const client = new InfluxDB({ url, token });
 const queryApi = client.getQueryApi(org);
 
 /**
- * Ejecuta un query Flux y devuelve las filas como objetos tipados
+ * Ejecuta un query Flux y devuelve las filas como objetos tipados.
+ * _time es opcional para que compile tanto en queries de series como en agregados simples.
  */
-export async function runFlux<T = any>(flux: string): Promise<T[]> {
+export async function runFlux<T extends { _value: any; _time?: string } = any>(
+  flux: string
+): Promise<T[]> {
   const rows: T[] = [];
   return new Promise((resolve, reject) => {
     queryApi.queryRows(flux, {
       next: (row, tableMeta) => {
-        const o = tableMeta.toObject(row) as T;
-        rows.push(o);
+        rows.push(tableMeta.toObject(row) as T);
       },
       error: (err) => reject(err),
       complete: () => resolve(rows),

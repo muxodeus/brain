@@ -1,35 +1,56 @@
 import { NextResponse } from "next/server";
 import { runFlux } from "@/lib/influx";
 
+type RowValue = { _value: string; _time?: string };
+
 export async function GET(): Promise<Response> {
   try {
     const bucket = process.env.INFLUX_BUCKET || "pqgenius";
 
-    const queries = [
-      runFlux(`from(bucket: "${bucket}") |> range(start: -7d)
+    // Ejecutamos todas las consultas en paralelo usando el helper genérico runFlux
+    const queries: Promise<RowValue[]>[] = [
+      runFlux<RowValue>(`
+        from(bucket: "${bucket}") |> range(start: -7d)
         |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "energy_kWh")
-        |> first()`),
-      runFlux(`from(bucket: "${bucket}") |> range(start: -7d)
+        |> first()
+      `),
+      runFlux<RowValue>(`
+        from(bucket: "${bucket}") |> range(start: -7d)
         |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "energy_kWh")
-        |> last()`),
-      runFlux(`from(bucket: "${bucket}") |> range(start: -14d, stop: -7d)
+        |> last()
+      `),
+      runFlux<RowValue>(`
+        from(bucket: "${bucket}") |> range(start: -14d, stop: -7d)
         |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "energy_kWh")
-        |> first()`),
-      runFlux(`from(bucket: "${bucket}") |> range(start: -14d, stop: -7d)
+        |> first()
+      `),
+      runFlux<RowValue>(`
+        from(bucket: "${bucket}") |> range(start: -14d, stop: -7d)
         |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "energy_kWh")
-        |> last()`),
-      runFlux(`from(bucket: "${bucket}") |> range(start: -7d)
+        |> last()
+      `),
+      runFlux<RowValue>(`
+        from(bucket: "${bucket}") |> range(start: -7d)
         |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "power_kW")
-        |> max()`),
-      runFlux(`from(bucket: "${bucket}") |> range(start: -7d)
+        |> max()
+      `),
+      runFlux<RowValue>(`
+        from(bucket: "${bucket}") |> range(start: -7d)
         |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "power_kW")
-        |> mean()`),
-      runFlux(`from(bucket: "${bucket}") |> range(start: -7d)
+        |> mean()
+      `),
+      // Series actuales (devuelven _time y _value; _time es opcional en el tipo RowValue)
+      runFlux<RowValue>(`
+        from(bucket: "${bucket}") |> range(start: -7d)
         |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "power_kW")
-        |> aggregateWindow(every: 30m, fn: mean, createEmpty: false)`),
-      runFlux(`from(bucket: "${bucket}") |> range(start: -14d, stop: -7d)
+        |> aggregateWindow(every: 30m, fn: mean, createEmpty: false)
+      `),
+      // Series semana anterior
+      runFlux<RowValue>(`
+        from(bucket: "${bucket}") |> range(start: -14d, stop: -7d)
         |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "power_kW")
-        |> aggregateWindow(every: 30m, fn: mean, createEmpty: false)`),
+        |> aggregateWindow(every: 30m, fn: mean, createEmpty: false)
+      `),
     ];
 
     const results = await Promise.allSettled(queries);
@@ -47,17 +68,16 @@ export async function GET(): Promise<Response> {
       anteriorSerieRows,
     ] = results.map(get);
 
-    // Consumos
+    // Consumos (kWh acumulados)
     const consumo =
       lastRow && firstRow
-        ? Number((lastRow[0] as any)?._value || 0) -
-          Number((firstRow[0] as any)?._value || 0)
+        ? Number(lastRow[0]?._value ?? 0) - Number(firstRow[0]?._value ?? 0)
         : 0;
 
     const consumoAnterior =
       anteriorLast && anteriorFirst
-        ? Number((anteriorLast[0] as any)?._value || 0) -
-          Number((anteriorFirst[0] as any)?._value || 0)
+        ? Number(anteriorLast[0]?._value ?? 0) -
+          Number(anteriorFirst[0]?._value ?? 0)
         : 0;
 
     // Variación con protecciones
@@ -70,8 +90,8 @@ export async function GET(): Promise<Response> {
     }
 
     // Otros KPIs
-    const max = maxRows ? Number((maxRows[0] as any)?._value || 0) : 0;
-    const mean = meanRows ? Number((meanRows[0] as any)?._value || 0) : 0;
+    const max = maxRows ? Number(maxRows[0]?._value ?? 0) : 0;
+    const mean = meanRows ? Number(meanRows[0]?._value ?? 0) : 0;
     const factorCarga = max ? (mean / max) * 100 : 0;
 
     const kpis = [
@@ -90,20 +110,20 @@ export async function GET(): Promise<Response> {
       },
     ];
 
-    // Series
-    const actualSeries = actualRows
-      ? (actualRows as any[]).map((r) => [
-          new Date(r._time!).getTime(),
-          Number(r._value),
-        ])
-      : [];
+    // Series para Highcharts [timestamp(ms), value]
+    const actualSeries =
+      actualRows?.length
+        ? actualRows
+            .filter((r) => r._time)
+            .map((r) => [new Date(r._time!).getTime(), Number(r._value)])
+        : [];
 
-    const anteriorSeries = anteriorSerieRows
-      ? (anteriorSerieRows as any[]).map((r) => [
-          new Date(r._time!).getTime(),
-          Number(r._value),
-        ])
-      : [];
+    const anteriorSeries =
+      anteriorSerieRows?.length
+        ? anteriorSerieRows
+            .filter((r) => r._time)
+            .map((r) => [new Date(r._time!).getTime(), Number(r._value)])
+        : [];
 
     const trendOptions = {
       chart: { type: "line", backgroundColor: "#000000", zoomType: "x" },
@@ -119,13 +139,13 @@ export async function GET(): Promise<Response> {
       legend: { itemStyle: { color: "#ffffff" } },
       series: [
         {
-          type: "line",
+          type: "line" as const,
           name: "Actual",
           data: actualSeries,
           color: "#00ffcc",
         },
         {
-          type: "line",
+          type: "line" as const,
           name: "Anterior",
           data: anteriorSeries,
           dashStyle: "ShortDash",
@@ -138,7 +158,7 @@ export async function GET(): Promise<Response> {
   } catch (err: any) {
     console.error("overview-fast error:", err);
     return NextResponse.json(
-      { error: err.message || "Error en overview-fast" },
+      { error: err?.message ?? "Error en overview-fast" },
       { status: 500 }
     );
   }

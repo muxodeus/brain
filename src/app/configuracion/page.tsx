@@ -3,6 +3,7 @@
 import { useConfig } from "@/context/ConfigContext";
 
 export default function ConfiguracionPage() {
+  // ✅ Ahora useConfig devuelve { config, setConfig }
   const { config, setConfig } = useConfig();
   const { meters, params, ranges, branding } = config;
 
@@ -81,14 +82,17 @@ export default function ConfiguracionPage() {
             </button>
           </div>
         ))}
-        <button
-          onClick={() =>
-            updateParams([...params, { field: "nuevo_param", label: "Nuevo" }])
-          }
-          className="px-3 py-1 bg-blue-600 text-white rounded"
-        >
-          + Añadir Parámetro
-        </button>
+<button
+  onClick={() =>
+    updateParams([
+      ...params,
+      { field: "nuevo_param", label: "Nuevo", color: "#000000" } // ✅ añade color
+    ])
+  }
+  className="px-3 py-1 bg-blue-600 text-white rounded"
+>
+  + Añadir Parámetro
+</button>
       </section>
 
       {/* Rangos */}

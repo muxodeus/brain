@@ -3,6 +3,7 @@
 import { useState } from "react";
 import GroupConsumptionChart from "@/components/GroupConsumptionChart";
 import GroupConsumptionAlerts from "@/components/GroupConsumptionAlerts";
+import AlertTimeline from "@/components/AlertTimeline";
 
 export default function GroupConsumosPage() {
   const [range, setRange] = useState("-7d");

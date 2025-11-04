@@ -9,7 +9,7 @@ export type Config = {
   meters: string[];
   params: Param[];
   ranges: Range[];
-  branding?: {
+  branding: {
     companyName: string;
     theme: string;
   };

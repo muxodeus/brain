@@ -235,6 +235,10 @@ series: [
     data: generateHeatmapData(heatmapDays, 24),
   },
 ],
+    });
+  }, [range, from, to]);
+
+  // ✅ Aquí va el return del componente
   return (
     <div className="min-h-screen bg-slate-900 text-white p-6 space-y-6">
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">

@@ -1,161 +1,87 @@
-import { InfluxDB } from "@influxdata/influxdb-client";
-
-// ⚡ Configuración desde variables de entorno
-const url = process.env.INFLUX_URL!;
-const token = process.env.INFLUX_TOKEN!;
-const org = process.env.INFLUX_ORG!;
-
-const client = new InfluxDB({ url, token });
-const queryApi = client.getQueryApi(org);
-
 /**
- * Ejecuta un query Flux y devuelve las filas como objetos tipados.
- * El tipo T se define en cada llamada para mayor seguridad.
+ * Devuelve un resumen de parámetros eléctricos clave desde InfluxDB
  */
-export async function runFlux<T = any>(flux: string): Promise<T[]> {
-  const rows: T[] = [];
-  return new Promise((resolve, reject) => {
-    queryApi.queryRows(flux, {
-      next: (row, tableMeta) => {
-        rows.push(tableMeta.toObject(row) as T);
-      },
-      error: (err) => {
-        console.error("❌ Influx query error:", err);
-        reject(err);
-      },
-      complete: () => resolve(rows),
-    });
-  });
-}
-
-/**
- * Devuelve una serie temporal lista para Highcharts
- */
-export async function fetchSeries(
-  bucket: string,
-  rango: string,
-  campo: string,
-  every: string = "1h"
-) {
-  const flux = `
-    from(bucket: "${bucket}")
-      |> range(start: ${rango})
-      |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "${campo}")
-      |> aggregateWindow(every: ${every}, fn: mean, createEmpty: false)
-      |> yield(name: "mean")
-  `;
-
-  const rows = await runFlux<{ _time: string; _value: string }>(flux);
-
-  return rows
-    .filter((r) => r._time)
-    .map((r) => [new Date(r._time!).getTime(), Number(r._value)]);
-}
-
-/**
- * Devuelve un único valor (ej. max, min, last, first)
- */
-export async function fetchSingleValue(
-  flux: string
-): Promise<number | null> {
-  const rows = await runFlux<{ _value: string }>(flux);
-  return rows.length ? Number(rows[0]._value) : null;
-}
-
-/**
- * Calcula KPIs de consumo, variación, pico y factor de carga
- */
-export async function fetchKPIs(bucket: string) {
-  const [firstRow, lastRow, anteriorFirst, anteriorLast, maxRows, meanRows] =
-    await Promise.all([
-      runFlux<{ _value: string }>(`
-        from(bucket: "${bucket}") |> range(start: -7d)
+export async function fetchSummary(bucket: string, range: string = "-24h") {
+  const queries = {
+    totalConsumption: `
+      from(bucket: "${bucket}")
+        |> range(start: ${range})
         |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "energy_kWh")
-        |> first()
-      `),
-      runFlux<{ _value: string }>(`
-        from(bucket: "${bucket}") |> range(start: -7d)
-        |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "energy_kWh")
+        |> difference(nonNegative: true)
+        |> sum()
+    `,
+    powerNow: `
+      from(bucket: "${bucket}")
+        |> range(start: ${range})
+        |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "power_kW")
         |> last()
-      `),
-      runFlux<{ _value: string }>(`
-        from(bucket: "${bucket}") |> range(start: -14d, stop: -7d)
-        |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "energy_kWh")
-        |> first()
-      `),
-      runFlux<{ _value: string }>(`
-        from(bucket: "${bucket}") |> range(start: -14d, stop: -7d)
-        |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "energy_kWh")
+    `,
+    voltageNow: `
+      from(bucket: "${bucket}")
+        |> range(start: ${range})
+        |> filter(fn: (r) => r._measurement == "pqgenius" and r._field =~ /voltage_.*/)
         |> last()
-      `),
-      runFlux<{ _value: string }>(`
-        from(bucket: "${bucket}") |> range(start: -7d)
+    `,
+    currentNow: `
+      from(bucket: "${bucket}")
+        |> range(start: ${range})
+        |> filter(fn: (r) => r._measurement == "pqgenius" and r._field =~ /current_.*/)
+        |> last()
+    `,
+    maxDemand: `
+      from(bucket: "${bucket}")
+        |> range(start: ${range})
         |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "power_kW")
         |> max()
-      `),
-      runFlux<{ _value: string }>(`
-        from(bucket: "${bucket}") |> range(start: -7d)
-        |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "power_kW")
-        |> mean()
-      `),
-    ]);
+    `,
+    freqNow: `
+      from(bucket: "${bucket}")
+        |> range(start: ${range})
+        |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "freq_Hz")
+        |> last()
+    `,
+    thdVoltage: `
+      from(bucket: "${bucket}")
+        |> range(start: ${range})
+        |> filter(fn: (r) => r._measurement == "pqgenius" and r._field =~ /thd_voltage.*/)
+        |> last()
+    `,
+    thdCurrent: `
+      from(bucket: "${bucket}")
+        |> range(start: ${range})
+        |> filter(fn: (r) => r._measurement == "pqgenius" and r._field =~ /thd_current.*/)
+        |> last()
+    `,
+  };
 
-  const consumo =
-    lastRow.length && firstRow.length
-      ? Number(lastRow[0]._value) - Number(firstRow[0]._value)
-      : 0;
-
-  const consumoAnterior =
-    anteriorLast.length && anteriorFirst.length
-      ? Number(anteriorLast[0]._value) - Number(anteriorFirst[0]._value)
-      : 0;
-
-  let variacion = "N/A";
-  if (consumoAnterior && consumoAnterior >= 100) {
-    const v = ((consumo - consumoAnterior) / consumoAnterior) * 100;
-    if (Math.abs(v) <= 200) variacion = `${v.toFixed(1)}%`;
-  }
-
-  const max = maxRows.length ? Number(maxRows[0]._value) : 0;
-  const mean = meanRows.length ? Number(meanRows[0]._value) : 0;
-  const factorCarga = max ? (mean / max) * 100 : 0;
-
-  return [
-    { label: "Consumo total (7d)", value: consumo ? `${(consumo / 1e3).toFixed(1)} kWh` : "N/A" },
-    { label: "Variación vs semana anterior", value: variacion },
-    { label: "Pico máximo de demanda", value: max ? `${max.toFixed(1)} kW` : "N/A" },
-    { label: "Factor de carga", value: max ? `${factorCarga.toFixed(1)}%` : "N/A" },
-  ];
-}
-
-/**
- * Devuelve dos series temporales (actual y anterior) listas para Highcharts
- */
-export async function fetchTrendSeries(
-  bucket: string,
-  field: string = "power_kW",
-  every: string = "30m"
-) {
-  const [actualRows, anteriorRows] = await Promise.all([
-    runFlux<{ _time: string; _value: string }>(`
-      from(bucket: "${bucket}") |> range(start: -7d)
-      |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "${field}")
-      |> aggregateWindow(every: ${every}, fn: mean, createEmpty: false)
-    `),
-    runFlux<{ _time: string; _value: string }>(`
-      from(bucket: "${bucket}") |> range(start: -14d, stop: -7d)
-      |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "${field}")
-      |> aggregateWindow(every: ${every}, fn: mean, createEmpty: false)
-    `),
+  const [
+    energyRows,
+    powerRows,
+    voltRows,
+    currentRows,
+    maxRows,
+    freqRows,
+    thdVoltRows,
+    thdCurrRows,
+  ] = await Promise.all([
+    runFlux<{ _value: number }>(queries.totalConsumption),
+    runFlux<{ _value: number }>(queries.powerNow),
+    runFlux<{ _value: number }>(queries.voltageNow),
+    runFlux<{ _value: number }>(queries.currentNow),
+    runFlux<{ _value: number }>(queries.maxDemand),
+    runFlux<{ _value: number }>(queries.freqNow),
+    runFlux<{ _value: number }>(queries.thdVoltage),
+    runFlux<{ _value: number }>(queries.thdCurrent),
   ]);
 
-  const actualSeries = actualRows
-    .filter((r) => r._time)
-    .map((r) => [new Date(r._time!).getTime(), Number(r._value)]);
-
-  const anteriorSeries = anteriorRows
-    .filter((r) => r._time)
-    .map((r) => [new Date(r._time!).getTime(), Number(r._value)]);
-
-  return { actualSeries, anteriorSeries };
+  return {
+    totalConsumption: energyRows[0]?._value ?? 0,
+    powerNow: powerRows[0]?._value ?? 0,
+    voltageNow: voltRows[0]?._value ?? 0,
+    currentNow: currentRows[0]?._value ?? 0,
+    maxDemand: maxRows[0]?._value ?? 0,
+    freqNow: freqRows[0]?._value ?? 0,
+    thdVoltage: thdVoltRows[0]?._value ?? 0,
+    thdCurrent: thdCurrRows[0]?._value ?? 0,
+  };
 }

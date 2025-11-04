@@ -1,3 +1,28 @@
+import { InfluxDB } from "@influxdata/influxdb-client";
+
+const url = process.env.INFLUX_URL!;
+const token = process.env.INFLUX_TOKEN!;
+const org = process.env.INFLUX_ORG!;
+
+const queryApi = new InfluxDB({ url, token }).getQueryApi(org);
+
+/**
+ * Ejecuta una consulta Flux y devuelve las filas tipadas
+ */
+export async function runFlux<T = any>(fluxQuery: string): Promise<T[]> {
+  const rows: T[] = [];
+  await new Promise<void>((resolve, reject) => {
+    queryApi.queryRows(fluxQuery, {
+      next: (row, tableMeta) => {
+        rows.push(tableMeta.toObject(row) as T);
+      },
+      error: reject,
+      complete: () => resolve(),
+    });
+  });
+  return rows;
+}
+
 /**
  * Devuelve un resumen de parámetros eléctricos clave desde InfluxDB
  */

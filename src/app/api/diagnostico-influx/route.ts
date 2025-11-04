@@ -10,7 +10,7 @@ const token =
 const org = process.env.INFLUX_ORG || "PQGenius";
 const bucket = process.env.INFLUX_BUCKET || "pqgenius";
 
-// Tipos auxiliares
+// Tipo auxiliar para tipar filas de Influx
 type InfluxRow = { _value: string; _time?: string };
 
 export async function GET(req: NextRequest) {

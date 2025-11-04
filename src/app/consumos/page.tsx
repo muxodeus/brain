@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Highcharts from "highcharts";
+import type { TooltipFormatterContextObject } from "highcharts";
+
 
 // Highcharts v12+ modules
 import "highcharts/modules/heatmap";
@@ -214,28 +216,25 @@ export default function ConsumosPage() {
           [1, "#38bdf8"],
         ],
       },
-      tooltip: {
-        formatter: function () {
-          const point: any = this.point;
-          const hour = this.series.xAxis.categories[point.x];
-          const day = this.series.yAxis.categories[point.y];
-          return `<b>${point.value} kWh</b><br/>${hour} - ${day} <span>(CST)</span>`;
-        },
-        useHTML: true,
-      },
-      exporting: { enabled: true },
-      series: [
-        {
-          type: "heatmap",
-          name: "Consumo",
-          borderWidth: 2,
-          borderColor: "#1e293b",
-          borderRadius: 6,
-          data: generateHeatmapData(heatmapDays, 24),
-        },
-      ],
-    });
-  }, [range, from, to]);
+tooltip: {
+  formatter: function (this: TooltipFormatterContextObject) {
+    const hour = this.series.xAxis.categories[this.x as number];
+    const day = this.series.yAxis.categories[this.y as number];
+    return `<b>${this.point?.value ?? this.y} kWh</b><br/>${hour} - ${day} <span>(CST)</span>`;
+  },
+  useHTML: true,
+},
+exporting: { enabled: true },
+series: [
+  {
+    type: "heatmap",
+    name: "Consumo",
+    borderWidth: 2,
+    borderColor: "#1e293b",
+    borderRadius: 6,
+    data: generateHeatmapData(heatmapDays, 24),
+  },
+],
   return (
     <div className="min-h-screen bg-slate-900 text-white p-6 space-y-6">
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">

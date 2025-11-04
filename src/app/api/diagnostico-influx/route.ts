@@ -1,23 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { InfluxDB, flux } from "@influxdata/influxdb-client";
+import { fetchSummary } from "@/lib/influx";
 
-const url =
-  process.env.INFLUX_URL ||
-  "https://us-east-1-1.aws.cloud2.influxdata.com";
-const token =
-  process.env.INFLUX_TOKEN ||
-  "ug7vnFSzqQseHoS9I1Jx4YL-135--9CO2DI-dL8kavBtt8KUqCcIQK0yOfPB_tXReyYb_4GIqmXW7r0D-TWXeQ==";
-const org = process.env.INFLUX_ORG || "PQGenius";
-const bucket = process.env.INFLUX_BUCKET || "pqgenius";
+const url = process.env.INFLUX_URL!;
+const token = process.env.INFLUX_TOKEN!;
+const org = process.env.INFLUX_ORG!;
+const bucket = process.env.INFLUX_BUCKET!;
 
-// Tipo auxiliar para tipar filas de Influx
-type InfluxRow = { _value: string; _time?: string };
+type InfluxRow = { _value: any; _time?: string };
 
 export async function GET(req: NextRequest) {
   try {
     const queryApi = new InfluxDB({ url, token }).getQueryApi(org);
 
-    // Medidas disponibles
+    // KPIs agregados
+    const summary = await fetchSummary(bucket, "-24h");
+
+    // Medidas y campos
     const measurementsQuery = `
       import "influxdata/influxdb/schema"
       schema.measurements(bucket: "${bucket}")
@@ -26,7 +25,6 @@ export async function GET(req: NextRequest) {
       measurementsQuery
     )) as InfluxRow[];
 
-    // Campos disponibles
     const fieldKeysQuery = `
       import "influxdata/influxdb/schema"
       schema.fieldKeys(bucket: "${bucket}")
@@ -35,7 +33,7 @@ export async function GET(req: NextRequest) {
       fieldKeysQuery
     )) as InfluxRow[];
 
-    // Tomamos muestras de cada campo
+    // Últimas N muestras crudas por campo
     const samples: Record<string, any[]> = {};
     for (const f of fields) {
       const field = f._value;
@@ -43,7 +41,7 @@ export async function GET(req: NextRequest) {
         |> range(start: -24h)
         |> filter(fn: (r) => r._field == "${field}")
         |> sort(columns: ["_time"], desc: true)
-        |> limit(n:5)`;
+        |> limit(n:10)`;
 
       const rows = (await queryApi.collectRows(sampleQuery)) as InfluxRow[];
       samples[field] = rows.map((r) => ({
@@ -55,6 +53,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       status: "ok",
       bucket,
+      summary,
       measurements: measurements.map((m) => m._value),
       fields: fields.map((f) => f._value),
       samples,

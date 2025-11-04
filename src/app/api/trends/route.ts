@@ -56,8 +56,9 @@ export async function GET(req: Request): Promise<Response> {
   // 👇 Tipamos explícitamente la promesa como Promise<Response>
   return new Promise<Response>((resolve, reject) => {
     queryApi.queryRows(fluxQuery, {
-      next: (row, meta) => rows.push(meta.toObject(row)),
-      error: (err) =>
+next: (row, meta) => {
+  rows.push(meta.toObject(row));
+},      error: (err) =>
         reject(NextResponse.json({ error: err.message }, { status: 500 })),
       complete: () => {
         const series: { time: string; value: number }[] = [];

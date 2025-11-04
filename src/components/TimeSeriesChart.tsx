@@ -3,9 +3,14 @@
 import Highcharts from "highcharts";
 import HighchartsReact from "highcharts-react-official";
 
+type Serie = {
+  name: string;
+  data: [number, number][];
+};
+
 type Props = {
   title: string;
-  series: { name: string; data: [number, number][] }[];
+  series: Serie[];
 };
 
 export default function TimeSeriesChart({ title, series }: Props) {
@@ -23,14 +28,17 @@ export default function TimeSeriesChart({ title, series }: Props) {
       labels: { style: { color: "#aaa" } },
     },
     yAxis: {
-      title: { text: null },
+      title: { text: undefined }, // ✅ antes era null
       labels: { style: { color: "#aaa" } },
       gridLineColor: "#333",
     },
     legend: {
       itemStyle: { color: "#ccc" },
     },
-    series,
+    series: series.map((s) => ({
+      ...s,
+      type: "line", // ✅ forzamos el tipo en cada serie
+    })),
     credits: { enabled: false },
   };
 

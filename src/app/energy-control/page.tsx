@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import HighchartsWrapper from "@/components/HighchartsWrapper";
+import HighchartsWrapper from "@core/components/HighchartsWrapper";
 
 export default function EnergyControlPage() {
   const [range, setRange] = useState("-7d");

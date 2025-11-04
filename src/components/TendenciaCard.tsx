@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Highcharts from "highcharts";
 import dynamic from "next/dynamic";
 import { cleanChannelName } from "@/config/channelAliases";
-import { paramAliases } from "@/config/paramAliases";
+import { getParamLabel } from "@/utils/getParamLabel";
 
 const HighchartsReact = dynamic(() => import("highcharts-react-official"), { ssr: false });
 
@@ -19,7 +19,7 @@ if (typeof window !== "undefined") {
   if (FullScreen.default) FullScreen.default(Highcharts);
 }
 
-type ParamMeta = { field: string; label: string; unit: string };
+type ParamMeta = { field: string; label: string; unit: string; color?: string };
 
 type Props = {
   site: string;
@@ -31,6 +31,19 @@ type Props = {
 };
 
 const CHANNELS = ["A", "B", "C", "Total"];
+
+// 🔧 Función para mapear param → clase Tailwind
+function getParamClass(field: string): string {
+  if (field.startsWith("voltage")) return "param-voltage";
+  if (field.startsWith("current")) return "param-current";
+  if (field.startsWith("p_act") || field.startsWith("p_app")) return "param-p-act";
+  if (field.startsWith("p_react")) return "param-p-react";
+  if (field.startsWith("energy")) return "param-energy";
+  if (field.startsWith("pf")) return "param-pf";
+  if (field.startsWith("freq")) return "param-frequency";
+  if (field.includes("thd")) return "param-thd";
+  return "param-default";
+}
 
 export default function TendenciaCard({
   site,
@@ -55,21 +68,39 @@ export default function TendenciaCard({
     fetchData();
   }, [site, meter, param, range, channel]);
 
-  const meta = allParams.find((p) => p.field === param) || paramAliases[param] || { label: param, unit: "" };
+  const { label, unit } = getParamLabel(param);
+  const paramClass = getParamClass(param);
 
   const options: Highcharts.Options = {
-    chart: { zoomType: "x", backgroundColor: "#0f172a" },
-    title: { text: `${meta.label} (${cleanChannelName(channel)})`, style: { color: "#e2e8f0" } },
-    xAxis: { type: "datetime", labels: { style: { color: "#94a3b8" } } },
-    yAxis: { title: { text: meta.unit || "" }, labels: { style: { color: "#94a3b8" } } },
-    tooltip: { shared: true, valueDecimals: 2, valueSuffix: ` ${meta.unit || ""}` },
+    chart: {
+      backgroundColor: "#0f172a",
+      zooming: { type: "x" }, // ✅ reemplazo de zoomType
+    },
+    title: {
+      text: `${label} (${cleanChannelName(channel)})`,
+      style: { color: "#e2e8f0" },
+    },
+    xAxis: {
+      type: "datetime",
+      labels: { style: { color: "#94a3b8" } },
+      crosshair: true, // opcional, línea guía vertical
+    },
+    yAxis: {
+      title: { text: unit || "" },
+      labels: { style: { color: "#94a3b8" } },
+    },
+    tooltip: {
+      shared: true,
+      valueDecimals: 2,
+      valueSuffix: ` ${unit || ""}`,
+    },
     legend: { enabled: false },
     series: [
       {
         type: "line",
-        name: meta.label,
+        name: label,
         data: series.map((d) => [new Date(d.time).getTime(), d.value]),
-        color: "#38bdf8",
+        color: `hsl(var(--${paramClass}))`,
       },
     ],
     exporting: { enabled: true },
@@ -80,7 +111,7 @@ export default function TendenciaCard({
       {/* Header con selects */}
       <div className="flex justify-between items-center mb-3">
         <h3 className="font-semibold">
-          {meta.label} ({cleanChannelName(channel)})
+          {label} ({cleanChannelName(channel)})
         </h3>
         <div className="flex gap-2">
           <select
@@ -113,21 +144,14 @@ export default function TendenciaCard({
 
       {/* Mini‑cards */}
       <div className="grid grid-cols-5 gap-2 text-xs mt-3">
-        <div className="bg-slate-800 p-2 rounded border-t-4 border-emerald-500">
-          Min: {stats.min ?? "—"} {meta.unit}
-        </div>
-        <div className="bg-slate-800 p-2 rounded border-t-4 border-blue-500">
-          P5: {stats.p5 ?? "—"} {meta.unit}
-        </div>
-        <div className="bg-slate-800 p-2 rounded border-t-4 border-sky-500">
-          Prom: {stats.mean ?? "—"} {meta.unit}
-        </div>
-        <div className="bg-slate-800 p-2 rounded border-t-4 border-orange-500">
-          P95: {stats.p95 ?? "—"} {meta.unit}
-        </div>
-        <div className="bg-slate-800 p-2 rounded border-t-4 border-rose-500">
-          Max: {stats.max ?? "—"} {meta.unit}
-        </div>
+        {["min", "p5", "mean", "p95", "max"].map((statKey) => (
+          <div
+            key={statKey}
+            className={`bg-slate-800 p-2 rounded border-t-4 border-${paramClass}`}
+          >
+            {statKey.toUpperCase()}: {stats[statKey] ?? "—"} {unit}
+          </div>
+        ))}
       </div>
     </div>
   );

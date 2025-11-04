@@ -1,7 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { ConfigProvider } from "@/context/ConfigContext";
+import { ConfigProvider } from "@core/context/ConfigContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -17,7 +17,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body className={inter.className}>
+      <body className={`${inter.className} font-sans bg-gray-50 dark:bg-slate-950`}>
         {/* ✅ Toda la app envuelta en ConfigProvider */}
         <ConfigProvider>
           {children}

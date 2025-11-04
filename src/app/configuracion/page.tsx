@@ -1,6 +1,6 @@
 "use client";
 
-import { useConfig } from "@/context/ConfigContext";
+import { useConfig } from "@core/context/ConfigContext";
 
 export default function ConfiguracionPage() {
   // ✅ Ahora useConfig devuelve { config, setConfig }

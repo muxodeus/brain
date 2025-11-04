@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import OverlayChart from "@/components/OverlayChart";
-import QuerySelector from "@/components/QuerySelector";
-import InsightsBox from "@/components/InsightsBox";
+import OverlayChart from "@core/components/OverlayChart";
+import QuerySelector from "@core/components/QuerySelector";
+import InsightsBox from "@core/components/InsightsBox";
 
 export default function DiagnosticoInfluxPage() {
   const [data, setData] = useState<any>(null);

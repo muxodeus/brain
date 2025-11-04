@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import ChartCard from "@/components/ChartCard";
-import HighchartsWrapper from "@/components/HighchartsWrapper";
+import ChartCard from "@core/components/ChartCard";
+import HighchartsWrapper from "@core/components/HighchartsWrapper";
 
 export default function ForecastsPage() {
   const [data, setData] = useState<[number, number][]>([]);

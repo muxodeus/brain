@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import AnomalyCard, { Anomaly } from "@/components/AnomalyCard";
-import MeterSelector from "@/components/MeterSelector";
+import AnomalyCard, { Anomaly } from "@core/components/AnomalyCard";
+import MeterSelector from "@core/components/MeterSelector";
+import AlertTimeline from "@core/components/AlertTimeline";
 
 export default function InsightsPage() {
   const [meter, setMeter] = useState("pqgenius");
@@ -13,7 +14,9 @@ export default function InsightsPage() {
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const res = await fetch(`/api/anomalies?meter=${meter}&range=${range}&window=1m`);
+      const res = await fetch(
+        `/api/anomalies?meter=${meter}&range=${range}&window=1m`
+      );
       const json = await res.json();
       if (json.ok) setAnomalies(json.anomalies);
       else setAnomalies([]);
@@ -26,12 +29,13 @@ export default function InsightsPage() {
     <div>
       <h1 className="text-xl font-semibold mb-4">Insights y Anomalías</h1>
 
-      {/* Cuadro moderno que agrupa las tarjetas */}
       <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
           <MeterSelector value={meter} onChange={setMeter} label="Medidor" />
           <div>
-            <label className="block text-sm text-slate-400 mb-1">Rango histórico</label>
+            <label className="block text-sm text-slate-400 mb-1">
+              Rango histórico
+            </label>
             <select
               value={range}
               onChange={(e) => setRange(e.target.value)}
@@ -45,7 +49,8 @@ export default function InsightsPage() {
           </div>
           <div className="flex items-end">
             <span className="text-xs text-slate-500">
-              Algoritmo MAD (Median Absolute Deviation) aplicado por ventana de 1m.
+              Algoritmo MAD (Median Absolute Deviation) aplicado por ventana de
+              1m.
             </span>
           </div>
         </div>
@@ -53,16 +58,23 @@ export default function InsightsPage() {
         {loading ? (
           <div className="text-slate-400">Cargando anomalías…</div>
         ) : anomalies.length === 0 ? (
-          <div className="text-slate-500">No se detectaron anomalías en este rango.</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-{anomalies.map((a, i) => (
-  <>
-    <AnomalyCard key={`${a.param}-${i}-${a.timestamp}`} anomaly={a} />
-    <AlertTimeline range="-30d" />
-  </>
-))}
+          <div className="text-slate-500">
+            No se detectaron anomalías en este rango.
           </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {anomalies.map((a, i) => (
+                <AnomalyCard
+                  key={`${a.param}-${i}-${a.timestamp}`}
+                  anomaly={a}
+                />
+              ))}
+            </div>
+
+            {/* Timeline global, no repetido por anomalía */}
+            <AlertTimeline range="-30d" />
+          </>
         )}
       </div>
     </div>

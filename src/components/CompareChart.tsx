@@ -81,7 +81,11 @@ export default function CompareChart({ meterA, meterB, param, range }: Props) {
   }, [meterA, meterB, param, range]);
 
   const options: Highcharts.Options = {
-    chart: { type: "line", backgroundColor: "transparent", zoomType: "x" },
+    chart: {
+      type: "line",
+      backgroundColor: "transparent",
+      zooming: { type: "x" }, // ✅ reemplazo de zoomType
+    },
     title: { text: undefined },
     xAxis: { type: "datetime" },
     yAxis: { title: { text: param } },

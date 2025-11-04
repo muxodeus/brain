@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import TemplateFormModal from "@/components/medidores/TemplateFormModal";
+import TemplateFormModal from "@core/components/medidores/TemplateFormModal";
 
 type Register = { address: number; label: string; type: string };
 type Template = {

@@ -58,7 +58,7 @@ export default function ConfigSidebar() {
                       key={child.href}
                       href={child.href}
                       className={`block px-3 py-1 rounded text-sm ${
-                        pathname.startsWith(child.href)
+                        pathname?.startsWith(child.href)
                           ? "bg-slate-700 text-white"
                           : "text-slate-300 hover:bg-slate-800"
                       }`}

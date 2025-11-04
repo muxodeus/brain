@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useConfig } from "@/context/ConfigContext";
-import { useMeter } from "@/context/MeterContext";
-import CompareChart from "@/components/CompareChart";
+import { useConfig } from "@core/context/ConfigContext";
+import { useMeter } from "@core/context/MeterContext";
+import CompareChart from "@core/components/CompareChart";
 
 export default function ComparePage() {
   const { config } = useConfig();

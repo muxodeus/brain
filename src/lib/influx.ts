@@ -110,3 +110,42 @@ export async function fetchSummary(bucket: string, range: string = "-24h") {
     thdCurrent: thdCurrRows[0]?._value ?? 0,
   };
 }
+
+/**
+ * Devuelve KPIs (envoltorio de fetchSummary)
+ */
+export async function fetchKPIs(bucket: string, range: string = "-24h") {
+  return fetchSummary(bucket, range);
+}
+
+/**
+ * Devuelve series de tendencia: actual vs. anterior
+ */
+export async function fetchTrendSeries(
+  bucket: string,
+  field: string,
+  window: string = "30m"
+) {
+  const actualFlux = `
+    from(bucket: "${bucket}")
+      |> range(start: -${window})
+      |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "${field}")
+      |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)
+      |> yield(name: "actual")
+  `;
+
+  const anteriorFlux = `
+    from(bucket: "${bucket}")
+      |> range(start: -${window}, stop: now() - ${window})
+      |> filter(fn: (r) => r._measurement == "pqgenius" and r._field == "${field}")
+      |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)
+      |> yield(name: "anterior")
+  `;
+
+  const [actualSeries, anteriorSeries] = await Promise.all([
+    runFlux<{ _time: string; _value: number }>(actualFlux),
+    runFlux<{ _time: string; _value: number }>(anteriorFlux),
+  ]);
+
+  return { actualSeries, anteriorSeries };
+}

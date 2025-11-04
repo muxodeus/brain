@@ -16,6 +16,9 @@ const token = process.env.INFLUX_TOKEN || "";
 const org = process.env.INFLUX_ORG || "";
 const bucket = process.env.INFLUX_BUCKET || "pqgenius";
 
+// Tipos para los resultados de Influx
+type FluxRow = { _value: string; _time?: string; _field?: string };
+
 async function main() {
   const queryApi = new InfluxDB({ url, token }).getQueryApi(org);
 
@@ -27,8 +30,8 @@ async function main() {
     schema.measurements(bucket: "${bucket}")
   `;
   console.log("📌 Mediciones disponibles:");
-  const measurements = await queryApi.collectRows(measurementsQuery);
-  measurements.forEach((r: any) => console.log(" -", r._value));
+  const measurements = await queryApi.collectRows<FluxRow>(measurementsQuery);
+  measurements.forEach((r) => console.log(" -", r._value));
 
   // 2. Campos
   const fieldKeysQuery = `
@@ -36,8 +39,8 @@ async function main() {
     schema.fieldKeys(bucket: "${bucket}")
   `;
   console.log("\n📌 Campos disponibles:");
-  const fields = await queryApi.collectRows(fieldKeysQuery);
-  fields.forEach((r: any) => console.log(" -", r._value));
+  const fields = await queryApi.collectRows<FluxRow>(fieldKeysQuery);
+  fields.forEach((r) => console.log(" -", r._value));
 
   // 3. Últimas 5 muestras por campo
   console.log("\n📌 Últimas 5 muestras por campo:");
@@ -49,14 +52,14 @@ async function main() {
       |> sort(columns: ["_time"], desc: true)
       |> limit(n:5)`;
 
-    const samples = await queryApi.collectRows(sampleQuery);
+    const samples = await queryApi.collectRows<FluxRow>(sampleQuery);
     console.log(`\nCampo: ${field}`);
-    samples.forEach((s: any) =>
+    samples.forEach((s) =>
       console.log(` - ${s._time}: ${s._value}`)
     );
   }
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error("❌ Error al consultar InfluxDB:", err);
 });

@@ -1,5 +1,5 @@
 "use client";
-import { useSidebar } from "@/context/SidebarContext";
+import { useSidebar } from "@core/context/SidebarContext";
 
 export default function Header() {
   const { toggleSidebar } = useSidebar();

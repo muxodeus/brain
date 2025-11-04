@@ -1,27 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import TendenciaCard from "@/components/TendenciaCard";
+import TendenciaCard from "@core/components/TendenciaCard";
 import { paramAliases } from "@/config/paramAliases";
-
-
-
-// Alias de parámetros → nombres legibles en español
-const paramAliases: Record<string, { label: string; unit: string }> = {
-  voltage_mean: { label: "Voltaje RMS", unit: "V" },
-  current_mean: { label: "Corriente RMS", unit: "A" },
-  frequency_mean: { label: "Frecuencia", unit: "Hz" },
-  p_act_mean: { label: "Potencia Activa", unit: "kW" },
-  pf_mean: { label: "Factor de Potencia", unit: "" },
-  ithd_mean: { label: "THD Corriente", unit: "%" },
-  vthd_mean: { label: "THD Voltaje", unit: "%" },
-  // agrega más según tus métricas
-};
+import { getParamLabel } from "@/utils/getParamLabel"; // ✅ Import movido arriba
 
 export default function TendenciasPage() {
   const [sites, setSites] = useState<string[]>([]);
   const [meters, setMeters] = useState<string[]>([]);
-  const [fields, setFields] = useState<{ field: string; label: string; unit: string }[]>([]);
+  const [fields, setFields] = useState<{ field: string; label: string; unit: string; color?: string }[]>([]);
 
   const [site, setSite] = useState("");
   const [meter, setMeter] = useState("");
@@ -31,7 +18,7 @@ export default function TendenciasPage() {
   const defaultParams = [
     "current_mean",     // Corriente
     "voltage_mean",     // Voltaje
-    "vthd_mean",        // VTHD (en vez de frecuencia)
+    "vthd_mean",        // VTHD
     "p_act_mean",       // Potencia Activa
     "pf_mean",          // Factor de Potencia
     "ithd_mean",        // THD Corriente
@@ -46,6 +33,7 @@ export default function TendenciasPage() {
       setSites(data);
       if (data.length > 0 && !site) setSite(data[0]);
     }
+
     async function fetchMeters() {
       if (!site) return;
       const res = await fetch(`/api/meters?site=${encodeURIComponent(site)}`);
@@ -53,17 +41,17 @@ export default function TendenciasPage() {
       setMeters(data);
       if (data.length > 0 && !meter) setMeter(data[0]);
     }
-async function fetchFields() {
-  const res = await fetch("/api/fields");
-  const data = await res.json();
-  const mapped = data.map((f: string) => {
-    if (paramAliases[f]) {
-      return { field: f, label: paramAliases[f].label, unit: paramAliases[f].unit };
+
+    async function fetchFields() {
+      const res = await fetch("/api/fields");
+      const data = await res.json();
+      const mapped = data.map((f: string) => {
+        const { label, unit, color } = getParamLabel(f);
+        return { field: f, label, unit, color };
+      });
+      setFields(mapped);
     }
-    return { field: f, label: f.replace("_mean", "").toUpperCase(), unit: "" };
-  });
-  setFields(mapped);
-}
+
     fetchSites();
     fetchMeters();
     fetchFields();

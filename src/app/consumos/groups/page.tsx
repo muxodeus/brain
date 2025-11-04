@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import GroupConsumptionChart from "@/components/GroupConsumptionChart";
-import GroupConsumptionAlerts from "@/components/GroupConsumptionAlerts";
-import AlertTimeline from "@/components/AlertTimeline";
+import GroupConsumptionChart from "@core/components/GroupConsumptionChart";
+import GroupConsumptionAlerts from "@core/components/GroupConsumptionAlerts";
+import AlertTimeline from "@core/components/AlertTimeline";
 
 export default function GroupConsumosPage() {
   const [range, setRange] = useState("-7d");

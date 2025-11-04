@@ -26,4 +26,9 @@ export const paramAliases: Record<string, { label: string; unit: string }> = {
   // Otros
   pf_mean: { label: "Factor de Potencia", unit: "" },
   frequency_mean: { label: "Frecuencia", unit: "Hz" },
+
+  // 🔧 Espacio para extender con nuevos parámetros
+  // ejemplo:
+  // temp_mean: { label: "Temperatura", unit: "°C" },
+  // humidity_mean: { label: "Humedad", unit: "%" },
 };

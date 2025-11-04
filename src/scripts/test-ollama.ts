@@ -5,7 +5,8 @@
  *   npx tsx scripts/test-ollama.ts "Tu prompt aquí"
  */
 
-import fetch from "node-fetch";
+// ❌ Ya no necesitas importar node-fetch
+// import fetch from "node-fetch";
 
 async function main() {
   const args = process.argv.slice(2);
@@ -24,8 +25,8 @@ async function main() {
       body: JSON.stringify({
         model: "llama3.2:3b", // cámbialo por el modelo que tengas en Ollama
         prompt,
-        stream: false
-      })
+        stream: false,
+      }),
     });
 
     if (!res.ok) {

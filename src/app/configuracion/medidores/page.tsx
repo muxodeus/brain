@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import MeterFormModal from "@/components/medidores/MeterFormModal";
+import MeterFormModal from "@core/components/medidores/MeterFormModal";
 import mqtt from "mqtt";
 
 type Meter = {

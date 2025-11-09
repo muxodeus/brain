@@ -3,3 +3,6 @@ node_modules
 .env.env.local
 .env.local
 src/app/api/ai/overview-fast/route.ts
+# Ignorar todo el módulo de reportes
+src/app/reportes/
+src/app/api/reportes

@@ -36,7 +36,6 @@ const menuItems: MenuItem[] = [
   { name: "AI", href: "/ai", icon: CpuChipIcon },
   { name: "Alarmas", href: "/alarmas", icon: ExclamationTriangleIcon, badge: 3 },
   { name: "Unifilar", href: "/unifilar", icon: HiOutlineShare },
-  { name: "Reportes", href: "/reportes", icon: DocumentChartBarIcon },
   {
     name: "Configuración",
     icon: Cog6ToothIcon,

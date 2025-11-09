@@ -1,90 +1,80 @@
 "use client";
 
-import { useState } from "react";
-import { useConfig } from "@core/context/ConfigContext";
-import { useMeter } from "@core/context/MeterContext";
-import CompareChart from "@core/components/CompareChart";
+import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+import { useHighcharts } from "@core/hooks/useHighcharts";
+import StatsCards from "@core/components/StatsCards";
 
-export default function ComparePage() {
-  const { config } = useConfig();
-  const { selectedMeter } = useMeter(); // usamos el global como base
-  const [meterA, setMeterA] = useState(selectedMeter);
-  const [meterB, setMeterB] = useState(config.meters[1] || selectedMeter);
-  const [param, setParam] = useState(config.params[0].field);
-  const [range, setRange] = useState(config.ranges[1].value);
+const HighchartsReact = dynamic(() => import("highcharts-react-official"), {
+  ssr: false,
+});
+
+type Props = {
+  meterA: string;
+  meterB: string;
+  param: string;
+  range: string;
+};
+
+export default function CompareChart({ meterA, meterB, param, range }: Props) {
+  const Highcharts = useHighcharts(); // ✅ Hook que carga Highcharts dinámicamente
+  const [series, setSeries] = useState<any[]>([]);
+  const [statsA, setStatsA] = useState<any>(null);
+  const [statsB, setStatsB] = useState<any>(null);
+
+  useEffect(() => {
+    async function loadData() {
+      const window =
+        range === "-1h" ? "10m" : range === "-24h" ? "1h" : "1d";
+
+      // Fetch de datos para A y B (igual que antes)...
+      // setSeries([...])
+      // setStatsA(...)
+      // setStatsB(...)
+    }
+    loadData();
+  }, [meterA, meterB, param, range]);
+
+  const options: any = {
+    chart: {
+      type: "line",
+      backgroundColor: "transparent",
+      zooming: { type: "x" },
+    },
+    title: { text: undefined },
+    xAxis: { type: "datetime" },
+    yAxis: { title: { text: param } },
+    tooltip: { shared: true },
+    series,
+    exporting: { enabled: true },
+  };
 
   return (
-    <div className="p-6 space-y-6">
-      <h2 className="text-xl font-bold">Comparación de Medidores</h2>
+    <div className="rounded-lg bg-white dark:bg-slate-900 p-5 shadow">
+      <h3 className="text-sm font-semibold mb-2">
+        Comparación de {param} entre {meterA} y {meterB}
+      </h3>
 
-      {/* Selectores dinámicos */}
-      <div className="flex flex-wrap gap-4 items-center">
-        {/* Medidor A */}
-        <div>
-          <label className="block text-xs text-slate-500 mb-1">Medidor A</label>
-          <select
-            value={meterA}
-            onChange={(e) => setMeterA(e.target.value)}
-            className="bg-slate-800 text-slate-200 rounded px-2 py-1 text-sm"
-          >
-            {config.meters.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
+      {/* Gráfica */}
+      {Highcharts && series.length > 0 ? (
+        <HighchartsReact highcharts={Highcharts} options={options} />
+      ) : (
+        <p className="text-sm text-slate-500">Cargando datos...</p>
+      )}
+
+      {/* Stats */}
+      {statsA && (
+        <div className="mt-4">
+          <h4 className="text-xs font-semibold text-slate-500 mb-1">{meterA}</h4>
+          <StatsCards stats={statsA} />
         </div>
-
-        {/* Medidor B */}
-        <div>
-          <label className="block text-xs text-slate-500 mb-1">Medidor B</label>
-          <select
-            value={meterB}
-            onChange={(e) => setMeterB(e.target.value)}
-            className="bg-slate-800 text-slate-200 rounded px-2 py-1 text-sm"
-          >
-            {config.meters.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
+      )}
+      {statsB && (
+        <div className="mt-4">
+          <h4 className="text-xs font-semibold text-slate-500 mb-1">{meterB}</h4>
+          <StatsCards stats={statsB} />
         </div>
-
-        {/* Parámetro */}
-        <div>
-          <label className="block text-xs text-slate-500 mb-1">Parámetro</label>
-          <select
-            value={param}
-            onChange={(e) => setParam(e.target.value)}
-            className="bg-slate-800 text-slate-200 rounded px-2 py-1 text-sm"
-          >
-            {config.params.map((p) => (
-              <option key={p.field} value={p.field}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Rango */}
-        <div>
-          <label className="block text-xs text-slate-500 mb-1">Rango</label>
-          <select
-            value={range}
-            onChange={(e) => setRange(e.target.value)}
-            className="bg-slate-800 text-slate-200 rounded px-2 py-1 text-sm"
-          >
-            {config.ranges.map((r) => (
-              <option key={r.value} value={r.value}>
-                {r.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <CompareChart meterA={meterA} meterB={meterB} param={param} range={range} />
+      )}
     </div>
   );
 }

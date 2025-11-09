@@ -1,23 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Highcharts from "highcharts";
-import dynamic from "next/dynamic";
 import { cleanChannelName } from "@/config/channelAliases";
 import { getParamLabel } from "@/utils/getParamLabel";
-
-const HighchartsReact = dynamic(() => import("highcharts-react-official"), { ssr: false });
-
-// Inicializar módulos SOLO en cliente
-if (typeof window !== "undefined") {
-  const Exporting = require("highcharts/modules/exporting");
-  const ExportData = require("highcharts/modules/export-data");
-  const FullScreen = require("highcharts/modules/full-screen");
-
-  if (Exporting.default) Exporting.default(Highcharts);
-  if (ExportData.default) ExportData.default(Highcharts);
-  if (FullScreen.default) FullScreen.default(Highcharts);
-}
+import HighchartsWrapper from "./HighchartsWrapper";
 
 type ParamMeta = { field: string; label: string; unit: string; color?: string };
 
@@ -25,25 +11,10 @@ type Props = {
   site: string;
   meter: string;
   param: string;
-  range: string;
+  range: string; // "-1h" | "-24h" | "-7d" | "-30d"
   allParams: ParamMeta[];
   onParamChange: (newParam: string) => void;
 };
-
-const CHANNELS = ["A", "B", "C", "Total"];
-
-// 🔧 Función para mapear param → clase Tailwind
-function getParamClass(field: string): string {
-  if (field.startsWith("voltage")) return "param-voltage";
-  if (field.startsWith("current")) return "param-current";
-  if (field.startsWith("p_act") || field.startsWith("p_app")) return "param-p-act";
-  if (field.startsWith("p_react")) return "param-p-react";
-  if (field.startsWith("energy")) return "param-energy";
-  if (field.startsWith("pf")) return "param-pf";
-  if (field.startsWith("freq")) return "param-frequency";
-  if (field.includes("thd")) return "param-thd";
-  return "param-default";
-}
 
 export default function TendenciaCard({
   site,
@@ -57,53 +28,60 @@ export default function TendenciaCard({
   const [series, setSeries] = useState<{ time: string; value: number }[]>([]);
   const [stats, setStats] = useState<Record<string, number>>({});
 
-  useEffect(() => {
-    async function fetchData() {
-      const qs = new URLSearchParams({ param, range, meter, site, channel }).toString();
-      const res = await fetch(`/api/trends?${qs}`);
-      const data = await res.json();
-      setSeries(Array.isArray(data.series) ? data.series : []);
-      setStats(data.stats || {});
-    }
-    fetchData();
-  }, [site, meter, param, range, channel]);
+  // Calcular estadísticas
+  function calcStats(s: { time: string; value: number }[]) {
+    if (!s.length) return { min: NaN, p5: NaN, mean: NaN, p95: NaN, max: NaN };
+    const values = s.map((d) => d.value).slice().sort((a, b) => a - b);
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+    const min = values[0];
+    const max = values[values.length - 1];
+    const p5 = values[Math.floor(values.length * 0.05)];
+    const p95 = values[Math.floor(values.length * 0.95)];
+    return { min, p5, mean, p95, max };
+  }
+
+  // Fetch al mock API con soporte de rangos y canales
+useEffect(() => {
+  async function fetchData() {
+    const res = await fetch(`/api/mockdata?site=${site}&meter=${meter}&range=${range}`);
+    const data = await res.json();
+    const seriesData = data[param]?.[channel] || data[param]?.Total || [];
+    setSeries(seriesData);
+    setStats(calcStats(seriesData));
+  }
+  fetchData();
+  const id = setInterval(fetchData, 60000);
+  return () => clearInterval(id);
+}, [site, meter, param, range, channel]);
 
   const { label, unit } = getParamLabel(param);
-  const paramClass = getParamClass(param);
+  const paramColor = allParams.find((p) => p.field === param)?.color || "#64748b";
 
+  // Opciones Highcharts: el eje X se ajusta por timestamps del API
   const options: Highcharts.Options = {
-    chart: {
-      backgroundColor: "#0f172a",
-      zooming: { type: "x" }, // ✅ reemplazo de zoomType
-    },
-    title: {
-      text: `${label} (${cleanChannelName(channel)})`,
-      style: { color: "#e2e8f0" },
-    },
+    chart: { backgroundColor: "#0f172a", zooming: { type: "x" } },
+    title: { text: `${label} (${cleanChannelName(channel)})`, style: { color: "#e2e8f0" } },
     xAxis: {
       type: "datetime",
       labels: { style: { color: "#94a3b8" } },
-      crosshair: true, // opcional, línea guía vertical
+      crosshair: true,
     },
     yAxis: {
       title: { text: unit || "" },
       labels: { style: { color: "#94a3b8" } },
     },
-    tooltip: {
-      shared: true,
-      valueDecimals: 2,
-      valueSuffix: ` ${unit || ""}`,
-    },
+    tooltip: { shared: true, valueDecimals: 2, valueSuffix: ` ${unit || ""}` },
     legend: { enabled: false },
+    exporting: { enabled: true },
     series: [
       {
         type: "line",
         name: label,
         data: series.map((d) => [new Date(d.time).getTime(), d.value]),
-        color: `hsl(var(--${paramClass}))`,
+        color: paramColor,
+        lineWidth: 2,
       },
     ],
-    exporting: { enabled: true },
   };
 
   return (
@@ -130,7 +108,7 @@ export default function TendenciaCard({
             onChange={(e) => setChannel(e.target.value)}
             className="bg-slate-800 text-slate-200 rounded px-2 py-1 text-sm"
           >
-            {CHANNELS.map((c) => (
+            {["A", "B", "C", "Total"].map((c) => (
               <option key={c} value={c}>
                 {cleanChannelName(c)}
               </option>
@@ -140,16 +118,23 @@ export default function TendenciaCard({
       </div>
 
       {/* Gráfico */}
-      <HighchartsReact highcharts={Highcharts} options={options} />
+      <HighchartsWrapper options={options} height={300} />
 
-      {/* Mini‑cards */}
+      {/* Mini‑cards con colores por estadístico y “Prom” */}
       <div className="grid grid-cols-5 gap-2 text-xs mt-3">
-        {["min", "p5", "mean", "p95", "max"].map((statKey) => (
+        {[
+          { key: "min", label: "Min", color: "#3b82f6" },
+          { key: "p5", label: "P5", color: "#22c55e" },
+          { key: "mean", label: "Prom", color: "#f97316" },
+          { key: "p95", label: "P95", color: "#9333ea" },
+          { key: "max", label: "Max", color: "#ef4444" },
+        ].map((stat) => (
           <div
-            key={statKey}
-            className={`bg-slate-800 p-2 rounded border-t-4 border-${paramClass}`}
+            key={stat.key}
+            className="bg-slate-800 p-2 rounded border-t-4"
+            style={{ borderTopColor: stat.color }}
           >
-            {statKey.toUpperCase()}: {stats[statKey] ?? "—"} {unit}
+            {stat.label}: {Number.isFinite(stats[stat.key]) ? stats[stat.key].toFixed(2) : "—"} {unit}
           </div>
         ))}
       </div>

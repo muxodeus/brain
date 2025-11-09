@@ -1,0 +1,99 @@
+.unifilar-container {
+  display: flex;
+  flex-direction: row;
+  height: 100vh;
+}
+
+/* Panel izquierdo: Constructor */
+.constructor-panel {
+  width: 22%;
+  padding: 1rem;
+  background-color: #0b0f1a; /* coherente con tema oscuro industrial */
+  color: #e5e7eb;
+  border-right: 1px solid #1f2937;
+}
+
+.constructor-panel h3 {
+  font-weight: 700;
+  color: #f3f4f6;
+}
+
+.medidor-list {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.medidor-item {
+  cursor: grab;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #374151;
+  background: #111827;
+  color: #f9fafb;
+  border-radius: 6px;
+}
+
+/* Panel central: contenedor del gráfico (no el canvas) */
+.graph-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: #0b0f1a; /* coherente con el resto del sitio */
+  color: #e5e7eb;
+}
+
+.graph-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid #1f2937;
+  background: #111827;
+}
+
+.graph-panel-header .hint {
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.graph-canvas {
+  flex: 1;
+  /* el fondo del canvas lo controla ReactFlow; aquí solo envolvemos */
+}
+
+/* Panel derecho: Insights */
+.insights-panel {
+  width: 22%;
+  padding: 1rem;
+  background-color: #0b0f1a; /* coherente con el resto del sitio */
+  color: #e5e7eb;
+  border-left: 1px solid #1f2937;
+}
+
+.insights-panel h3 {
+  font-weight: 700;
+  color: #f3f4f6;
+}
+
+.insight-card {
+  margin-top: 0.5rem;
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.insight-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.insight-actions button {
+  background: #1f2937;
+  color: #f9fafb;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  padding: 0.4rem 0.7rem;
+}

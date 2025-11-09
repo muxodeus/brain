@@ -1,7 +1,11 @@
 "use client";
 
-import Highcharts from "highcharts";
-import HighchartsReact from "highcharts-react-official";
+import dynamic from "next/dynamic";
+import { useHighcharts } from "@core/hooks/useHighcharts";
+
+const HighchartsReact = dynamic(() => import("highcharts-react-official"), {
+  ssr: false,
+});
 
 type Serie = {
   name: string;              // Nombre del medidor (ej. "Medidor A")
@@ -16,11 +20,13 @@ type Props = {
 };
 
 export default function OverlayChart({ title, series, unit }: Props) {
-  const options: Highcharts.Options = {
+  const Highcharts = useHighcharts(); // ✅ Hook que carga Highcharts dinámicamente
+
+  const options: any = {
     chart: {
       type: "line",
       backgroundColor: "transparent",
-      zooming: { type: "x" }, // ✅ reemplazo de zoomType
+      zooming: { type: "x" },
     },
     title: {
       text: title,
@@ -30,13 +36,12 @@ export default function OverlayChart({ title, series, unit }: Props) {
       type: "datetime",
       labels: { style: { color: "#aaa" } },
       gridLineColor: "#333",
-      crosshair: true, // ✅ crosshair ahora en el eje
+      crosshair: true,
     },
     yAxis: {
       title: { text: unit ? `${title} (${unit})` : title },
       labels: { style: { color: "#aaa" } },
       gridLineColor: "#333",
-      crosshair: false, // opcional
     },
     legend: {
       itemStyle: { color: "#ccc" },
@@ -66,5 +71,9 @@ export default function OverlayChart({ title, series, unit }: Props) {
     credits: { enabled: false },
   };
 
-  return <HighchartsReact highcharts={Highcharts} options={options} />;
+  return Highcharts ? (
+    <HighchartsReact highcharts={Highcharts} options={options} />
+  ) : (
+    <p className="text-sm text-slate-500">Cargando gráfico...</p>
+  );
 }

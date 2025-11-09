@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { runFlux } from "@/lib/influx";
 
+// ✅ Evita cacheo en este endpoint
+export const revalidate = 0;
+
 export async function GET(req: Request) {
   try {
-    const { searchParams } = new URL(req.url, "http://localhost"); // ✅ fix
+    const { searchParams } = new URL(req.url, "http://localhost");
     const range = searchParams.get("range") || "7d";
     const bucket = process.env.INFLUX_BUCKET || "pqgenius";
 

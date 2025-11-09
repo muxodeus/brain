@@ -1,3 +1,5 @@
+import StatsCards from "@core/components/StatsCards";
+
 export default function StatsCards({ stats }: { stats: any }) {
   const cards = [
     { label: "Mínimo", value: stats.min?.toFixed(3), color: "bg-green-600" },

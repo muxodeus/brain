@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Highcharts from "highcharts";
-import HighchartsReact from "highcharts-react-official";
+import dynamic from "next/dynamic";
 import StatsCards from "./StatsCards";
 
-import "highcharts/modules/exporting";
-import "highcharts/modules/export-data";
-import "highcharts/modules/full-screen";
+// Import dinámico de HighchartsReact (solo cliente)
+const HighchartsReact = dynamic(() => import("highcharts-react-official"), {
+  ssr: false,
+});
 
 type Props = {
   meterA: string;
@@ -20,13 +20,25 @@ export default function CompareChart({ meterA, meterB, param, range }: Props) {
   const [series, setSeries] = useState<any[]>([]);
   const [statsA, setStatsA] = useState<any>(null);
   const [statsB, setStatsB] = useState<any>(null);
+  const [Highcharts, setHighcharts] = useState<any>(null);
 
+  // Cargar Highcharts y módulos solo en cliente
+  useEffect(() => {
+    (async () => {
+      const HighchartsLib = (await import("highcharts")).default;
+      await import("highcharts/modules/exporting").then((m) => m.default(HighchartsLib));
+      await import("highcharts/modules/export-data").then((m) => m.default(HighchartsLib));
+      await import("highcharts/modules/full-screen").then((m) => m.default(HighchartsLib));
+      setHighcharts(HighchartsLib);
+    })();
+  }, []);
+
+  // Cargar datos
   useEffect(() => {
     async function loadData() {
       const window =
         range === "-1h" ? "10m" : range === "-24h" ? "1h" : "1d";
 
-      // Serie A
       const resA = await fetch(
         `/api/metrics?meter=${meterA}&param=${param}&range=${range}&window=${window}`,
         { cache: "no-store" }
@@ -38,12 +50,11 @@ export default function CompareChart({ meterA, meterB, param, range }: Props) {
           Number(r._value),
         ]);
         setSeries((prev) => [
-          { name: meterA, data, color: "#3b82f6" }, // azul
+          { name: meterA, data, color: "#3b82f6" },
           ...(prev.filter((s) => s.name !== meterA)),
         ]);
       }
 
-      // Serie B
       const resB = await fetch(
         `/api/metrics?meter=${meterB}&param=${param}&range=${range}&window=${window}`,
         { cache: "no-store" }
@@ -56,11 +67,10 @@ export default function CompareChart({ meterA, meterB, param, range }: Props) {
         ]);
         setSeries((prev) => [
           ...(prev.filter((s) => s.name !== meterB)),
-          { name: meterB, data, color: "#f97316" }, // naranja
+          { name: meterB, data, color: "#f97316" },
         ]);
       }
 
-      // Stats A
       const resStatsA = await fetch(
         `/api/metrics/stats?meter=${meterA}&param=${param}&range=${range}`,
         { cache: "no-store" }
@@ -68,7 +78,6 @@ export default function CompareChart({ meterA, meterB, param, range }: Props) {
       const jsonStatsA = await resStatsA.json();
       if (jsonStatsA.ok) setStatsA(jsonStatsA.stats);
 
-      // Stats B
       const resStatsB = await fetch(
         `/api/metrics/stats?meter=${meterB}&param=${param}&range=${range}`,
         { cache: "no-store" }
@@ -80,11 +89,11 @@ export default function CompareChart({ meterA, meterB, param, range }: Props) {
     loadData();
   }, [meterA, meterB, param, range]);
 
-  const options: Highcharts.Options = {
+  const options: any = {
     chart: {
       type: "line",
       backgroundColor: "transparent",
-      zooming: { type: "x" }, // ✅ reemplazo de zoomType
+      zooming: { type: "x" },
     },
     title: { text: undefined },
     xAxis: { type: "datetime" },
@@ -101,28 +110,22 @@ export default function CompareChart({ meterA, meterB, param, range }: Props) {
       </h3>
 
       {/* Gráfica */}
-      {series.length > 0 ? (
+      {Highcharts && series.length > 0 ? (
         <HighchartsReact highcharts={Highcharts} options={options} />
       ) : (
         <p className="text-sm text-slate-500">Cargando datos...</p>
       )}
 
-      {/* Stats Medidor A */}
       {statsA && (
         <div className="mt-4">
-          <h4 className="text-xs font-semibold text-slate-500 mb-1">
-            {meterA}
-          </h4>
+          <h4 className="text-xs font-semibold text-slate-500 mb-1">{meterA}</h4>
           <StatsCards stats={statsA} />
         </div>
       )}
 
-      {/* Stats Medidor B */}
       {statsB && (
         <div className="mt-4">
-          <h4 className="text-xs font-semibold text-slate-500 mb-1">
-            {meterB}
-          </h4>
+          <h4 className="text-xs font-semibold text-slate-500 mb-1">{meterB}</h4>
           <StatsCards stats={statsB} />
         </div>
       )}

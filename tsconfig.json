@@ -4,8 +4,8 @@
     "paths": {
       "@/*": ["src/*"],
       "@core/*": ["src/*"],
-      "@admin/*": ["tailadmin-template/src/*"],
-      "@icons": ["tailadmin-template/src/icons/index.ts"]
+      "@admin/*": ["tailadmin-templates/src/*"],
+      "@icons": ["tailadmin-templates/src/icons/index.ts"]
     },
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
@@ -14,24 +14,19 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
-    "incremental": true,
+    "incremental": false,
     "module": "esnext",
     "esModuleInterop": true,
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "isolatedModules": true,
-"jsx": "preserve",
-"incremental": false
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
+    "jsx": "preserve",
+    "plugins": [{ "name": "next" }],
     "strictNullChecks": true
   },
   "include": [
     "src",
-    "tailadmin-template/src",
+    "tailadmin-templates/src",
     "next-env.d.ts",
     ".next/types/**/*.ts",
     "**/*.ts",

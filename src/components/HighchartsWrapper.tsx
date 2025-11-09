@@ -18,7 +18,20 @@ type Props = {
 
 export default function HighchartsWrapper({ options, height = 400 }: Props) {
   useEffect(() => {
-    // Debug opcional
+    // Inicializar módulos en cliente
+    const exp = require("highcharts/modules/exporting");
+    const expData = require("highcharts/modules/export-data");
+    const fs = require("highcharts/modules/full-screen");
+
+    if (typeof exp === "function") exp(Highcharts);
+    else if (exp?.default) exp.default(Highcharts);
+
+    if (typeof expData === "function") expData(Highcharts);
+    else if (expData?.default) expData.default(Highcharts);
+
+    if (typeof fs === "function") fs(Highcharts);
+    else if (fs?.default) fs.default(Highcharts);
+
     console.log("Highcharts timezone:", Intl.DateTimeFormat().resolvedOptions().timeZone);
   }, []);
 

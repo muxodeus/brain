@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import TendenciaCard from "@core/components/TendenciaCard";
-import { paramAliases } from "@/config/paramAliases";
-import { getParamLabel } from "@/utils/getParamLabel"; // ✅ Import movido arriba
+import { getParamLabel } from "@/utils/getParamLabel";
 
 export default function TendenciasPage() {
   const [sites, setSites] = useState<string[]>([]);
@@ -13,6 +12,9 @@ export default function TendenciasPage() {
   const [site, setSite] = useState("");
   const [meter, setMeter] = useState("");
   const [range, setRange] = useState("-1h");
+
+  // ✅ Estado para la hora de última actualización
+  const [lastUpdate, setLastUpdate] = useState<string>("");
 
   // Defaults para las 6 gráficas
   const defaultParams = [
@@ -25,37 +27,40 @@ export default function TendenciasPage() {
   ];
   const [selectedParams, setSelectedParams] = useState<string[]>(defaultParams);
 
-  // Cargar sitios, medidores y fields
+  // Mock data en vez de fetch
   useEffect(() => {
-    async function fetchSites() {
-      const res = await fetch("/api/sites");
-      const data = await res.json();
-      setSites(data);
-      if (data.length > 0 && !site) setSite(data[0]);
-    }
+    const mockSites = ["Planta Avícola", "Data Center San Miguel", "Hospital Regional"];
+    setSites(mockSites);
+    if (!site) setSite(mockSites[0]);
 
-    async function fetchMeters() {
-      if (!site) return;
-      const res = await fetch(`/api/meters?site=${encodeURIComponent(site)}`);
-      const data = await res.json();
-      setMeters(data);
-      if (data.length > 0 && !meter) setMeter(data[0]);
-    }
+    const mockMeters: Record<string, string[]> = {
+      "Planta Avícola": ["Subestación 1", "Panel Proceso", "Panel Aire Acondicionado", "Panel Bombas"],
+      "Data Center San Miguel": ["UPS Principal", "Panel Servidores", "Climatización"],
+      "Hospital Regional": ["Subestación Principal", "Panel Emergencias", "Panel Quirófanos"],
+    };
+    setMeters(mockMeters[site] || []);
+    if (!meter && mockMeters[site]) setMeter(mockMeters[site][0]);
 
-    async function fetchFields() {
-      const res = await fetch("/api/fields");
-      const data = await res.json();
-      const mapped = data.map((f: string) => {
-        const { label, unit, color } = getParamLabel(f);
-        return { field: f, label, unit, color };
-      });
-      setFields(mapped);
-    }
+    const mockFields = [
+      "current_mean",
+      "voltage_mean",
+      "vthd_mean",
+      "p_act_mean",
+      "pf_mean",
+      "ithd_mean",
+      "freq_mean",
+      "energy_act",
+    ].map((f) => {
+      const { label, unit, color } = getParamLabel(f);
+      return { field: f, label, unit, color };
+    });
+    setFields(mockFields);
+  }, [site]);
 
-    fetchSites();
-    fetchMeters();
-    fetchFields();
-  }, [site, meter]);
+  // ✅ Calcular hora en cliente para evitar mismatch
+  useEffect(() => {
+    setLastUpdate(new Date().toLocaleString("es-SV", { hour12: false }));
+  }, []);
 
   const updateParam = (index: number, newParam: string) => {
     const updated = [...selectedParams];
@@ -75,7 +80,7 @@ export default function TendenciasPage() {
       <header className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">📈 Tendencias</h2>
         <div className="text-xs text-slate-400">
-          Última actualización: {new Date().toLocaleString("es-SV", { hour12: false })}
+          Última actualización: {lastUpdate || "—"}
         </div>
       </header>
 

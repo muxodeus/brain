@@ -1,26 +1,24 @@
 import "./globals.css";
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import { ConfigProvider } from "@core/context/ConfigContext";
+import { ConfigProvider } from "@/context/ConfigContext";
+import { MeterProvider } from "@/context/MeterContext";
+import Sidebar from "@/components/Sidebar";
 
-const inter = Inter({ subsets: ["latin"] });
-
-export const metadata: Metadata = {
-  title: "PQGenius Dashboard",
-  description: "Plataforma de Monitoreo Energético",
+export const metadata = {
+  title: "PQGenius",
+  description: "Industrial analytics",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
-      <body className={`${inter.className} font-sans bg-gray-50 dark:bg-slate-950`}>
-        {/* ✅ Toda la app envuelta en ConfigProvider */}
+      <body className="bg-slate-950 text-white">
         <ConfigProvider>
-          {children}
+          <MeterProvider>
+            <div className="flex h-screen">
+              <Sidebar />
+              <main className="flex-1 overflow-y-auto">{children}</main>
+            </div>
+          </MeterProvider>
         </ConfigProvider>
       </body>
     </html>

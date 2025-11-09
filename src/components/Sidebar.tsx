@@ -33,7 +33,6 @@ const menuItems: MenuItem[] = [
   { name: "Centro de Energía", href: "/consumos", icon: BoltIcon, badge: 3 },
   { name: "Dashboard", href: "/kpis", icon: Squares2X2Icon },
   { name: "Estadísticas", href: "/stats", icon: ChartPieIcon },
-  { name: "Compare", href: "/compare", icon: ArrowsRightLeftIcon },
   { name: "AI", href: "/ai", icon: CpuChipIcon },
   { name: "Alarmas", href: "/alarmas", icon: ExclamationTriangleIcon, badge: 3 },
   { name: "Unifilar", href: "/unifilar", icon: HiOutlineShare },

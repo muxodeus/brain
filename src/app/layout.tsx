@@ -1,6 +1,7 @@
 import "./globals.css";
 import { ConfigProvider } from "@/context/ConfigContext";
 import { MeterProvider } from "@/context/MeterContext";
+import { AuthProvider } from "@/context/AuthContext";
 import Sidebar from "@/components/Sidebar";
 
 export const metadata = {
@@ -14,10 +15,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="bg-slate-950 text-white">
         <ConfigProvider>
           <MeterProvider>
-            <div className="flex h-screen">
-              <Sidebar />
-              <main className="flex-1 overflow-y-auto">{children}</main>
-            </div>
+            <AuthProvider>
+              <div className="flex h-screen">
+                <Sidebar />
+                <main className="flex-1 overflow-y-auto">{children}</main>
+              </div>
+            </AuthProvider>
           </MeterProvider>
         </ConfigProvider>
       </body>

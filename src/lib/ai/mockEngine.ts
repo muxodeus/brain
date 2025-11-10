@@ -212,7 +212,7 @@ export function getMockResponse(prompt: string): AIResponse {
       base.keywords = ["usuarios", "roles"];
       base.cards.push(
         { type: "table", title: "Usuarios activos", columns: ["Usuario", "Rol"], rows: [["Ana", "Admin"], ["Luis", "Viewer"], ["María", "Editor"], ["Carlos", "Viewer"]] },
-        { type: "actions", title: "Gestión rápida", actions: [{ label: "Permisos", href: "/config/users" }, { label: "Auditoría", href: "/reportes?tipo=usuarios" }] }
+        { type: "actions", title: "Gestión rápida", actions: [{ label: "Permisos", href: "/configuracion/users" }, { label: "Auditoría", href: "/reportes?tipo=usuarios" }] }
       );
       base.suggestions = ["Usuarios conectados hoy", "Cambios de rol recientes"];
       return base;

@@ -35,4 +35,4 @@ coverage
 # Editor configs temporales
 *.swp
 *.swo
-*.tmp
+*.tmp.DS_Store

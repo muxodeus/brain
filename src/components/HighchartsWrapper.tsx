@@ -1,14 +1,49 @@
+// brain/src/components/HighchartsWrapper.tsx
 "use client";
 
 import Highcharts from "highcharts";
 import HighchartsReact from "highcharts-react-official";
 import { useEffect } from "react";
 
-// ⚡ Configurar Highcharts para usar la zona horaria local del navegador
+// Tema visual global
 Highcharts.setOptions({
-  time: {
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  chart: {
+    backgroundColor: "transparent",
+    style: { fontFamily: "Inter, sans-serif" },
   },
+  title: { style: { color: "#fff", fontWeight: "600" } },
+  xAxis: {
+    labels: { style: { color: "#cbd5e1" } },
+    lineColor: "#475569",
+    gridLineColor: "#334155",
+  },
+  yAxis: {
+    labels: { style: { color: "#cbd5e1" } },
+    title: { style: { color: "#fff" } },
+    gridLineColor: "#334155",
+    min: 0,
+  },
+  legend: {
+    itemStyle: { color: "#cbd5e1" },
+    itemHoverStyle: { color: "#06b6d4" },
+  },
+  tooltip: {
+    backgroundColor: "#0b1220",
+    borderColor: "#06b6d4",
+    style: { color: "#fff" },
+  },
+  plotOptions: {
+    column: { borderRadius: 4, borderColor: "transparent" },
+    line: { lineWidth: 2, marker: { radius: 3 } },
+    scatter: { marker: { radius: 5, symbol: "circle" } },
+  },
+  colors: ["#60a5fa", "#f97316", "#ef4444", "#22c55e", "#06b6d4", "#fbbf24"],
+  accessibility: { enabled: false },
+});
+
+// Zona horaria local
+Highcharts.setOptions({
+  time: { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
 });
 
 type Props = {
@@ -18,21 +53,18 @@ type Props = {
 
 export default function HighchartsWrapper({ options, height = 400 }: Props) {
   useEffect(() => {
-    // Inicializar módulos en cliente
-    const exp = require("highcharts/modules/exporting");
-    const expData = require("highcharts/modules/export-data");
-    const fs = require("highcharts/modules/full-screen");
+    const exporting = require("highcharts/modules/exporting");
+    const exportData = require("highcharts/modules/export-data");
+    const fullscreen = require("highcharts/modules/full-screen");
 
-    if (typeof exp === "function") exp(Highcharts);
-    else if (exp?.default) exp.default(Highcharts);
+    if (typeof exporting === "function") exporting(Highcharts);
+    else if (exporting && typeof exporting.default === "function") exporting.default(Highcharts);
 
-    if (typeof expData === "function") expData(Highcharts);
-    else if (expData?.default) expData.default(Highcharts);
+    if (typeof exportData === "function") exportData(Highcharts);
+    else if (exportData && typeof exportData.default === "function") exportData.default(Highcharts);
 
-    if (typeof fs === "function") fs(Highcharts);
-    else if (fs?.default) fs.default(Highcharts);
-
-    console.log("Highcharts timezone:", Intl.DateTimeFormat().resolvedOptions().timeZone);
+    if (typeof fullscreen === "function") fullscreen(Highcharts);
+    else if (fullscreen && typeof fullscreen.default === "function") fullscreen.default(Highcharts);
   }, []);
 
   return (
@@ -43,7 +75,6 @@ export default function HighchartsWrapper({ options, height = 400 }: Props) {
         chart: {
           ...options.chart,
           height,
-          backgroundColor: "transparent",
         },
       }}
     />

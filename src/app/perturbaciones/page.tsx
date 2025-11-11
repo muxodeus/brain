@@ -1,6 +1,6 @@
 "use client";
 import React, { useMemo, useState, useEffect } from "react";
-import HighchartsWrapper from "../../../../brain/src/components/HighchartsWrapper";
+import HighchartsWrapper from "@core/components/HighchartsWrapper";
 import { generateMockEvents } from "./data/eventGenerator";
 
 const tabs = [

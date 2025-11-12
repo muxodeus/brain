@@ -14,10 +14,12 @@ out
 
 # Archivos específicos que quieres ignorar
 src/app/api/ai/overview-fast/route.ts
+src/app/api/ai/overview-insights/route.ts
 
 # Ignorar todo el módulo de reportes
 src/app/reportes/
 src/app/api/reportes/
+
 
 # Archivos basura de macOS
 .DS_Store

@@ -1,7 +1,6 @@
 module.exports = {
   plugins: {
-    "@tailwindcss/postcss": {},
-    "@tailwindcss/forms": {},
-    "@tailwindcss/typography": {},
+    "@tailwindcss/postcss": {},   // nuevo plugin oficial
+    autoprefixer: {},
   },
 };

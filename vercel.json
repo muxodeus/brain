@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/Enerion",
+      "destination": "https://ts.net"
+    },
+    {
+      "source": "/Enerion/:path*",
+      "destination": "https://ts.net*"
+    }
+  ]
+}
